@@ -1,0 +1,138 @@
+<svg width="780" height="800" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="780" height="800" fill="rgb(171, 123, 41)" />
+  <!-- Middle -->
+  <rect x="362" y="0" width="56" height="800" fill="rgb(151, 103, 21)" />
+  
+  <!-- Border -->
+  <!-- <rect x="0" y="0" width="1300" height="800" fill="none" stroke="rgb(151, 103, 21)" stroke-width="80" /> -->
+  
+  <!-- Triangles -->
+  <!-- Top left -->
+  <polygon points=" 30,340   0,0 60,0" fill="rgb(216, 182, 109)" />
+  <polygon points=" 90,340  60,0 120,0" fill="rgb(125, 22, 0)" />
+  <polygon points="150,340 120,0 180,0" fill="rgb(216, 182, 109)" />
+  <polygon points="210,340 180,0 240,0" fill="rgb(125, 22, 0)" />
+  <polygon points="270,340 240,0 300,0" fill="rgb(216, 182, 109)" />
+  <polygon points="330,340 300,0 360,0" fill="rgb(125, 22, 0)" />
+  
+  <!-- Bottom left -->
+  <polygon points=" 30,460   0,800  60,800" fill="rgb(125, 22, 0)" />
+  <polygon points=" 90,460  60,800 120,800" fill="rgb(216, 182, 109)" />
+  <polygon points="150,460 120,800 180,800" fill="rgb(125, 22, 0)" />
+  <polygon points="210,460 180,800 240,800" fill="rgb(216, 182, 109)" />
+  <polygon points="270,460 240,800 300,800" fill="rgb(125, 22, 0)" />
+  <polygon points="330,460 300,800 360,800" fill="rgb(216, 182, 109)" />
+  
+  <!-- Top right -->
+  <polygon points="450,340 420,0 480,0" fill="rgb(216, 182, 109)" />
+  <polygon points="510,340 480,0 540,0" fill="rgb(125, 22, 0)" />
+  <polygon points="570,340 540,0 600,0" fill="rgb(216, 182, 109)" />
+  <polygon points="630,340 600,0 660,0" fill="rgb(125, 22, 0)" />
+  <polygon points="690,340 660,0 720,0" fill="rgb(216, 182, 109)" />
+  <polygon points="750,340 720,0 780,0" fill="rgb(125, 22, 0)" />
+  
+  <!-- Bottom right -->
+  <polygon points="450,460 420,800 480,800" fill="rgb(125, 22, 0)" />
+  <polygon points="510,460 480,800 540,800" fill="rgb(216, 182, 109)" />
+  <polygon points="570,460 540,800 600,800" fill="rgb(125, 22, 0)" />
+  <polygon points="630,460 600,800 660,800" fill="rgb(216, 182, 109)" />
+  <polygon points="690,460 660,800 720,800" fill="rgb(125, 22, 0)" />
+  <polygon points="750,460 720,800 780,800" fill="rgb(216, 182, 109)" />
+</svg>
+
+
+
+
+
+<!-- BOARD CANVAS - BOARD CANVAS - BOARD CANVAS - BOARD CANVAS - BOARD CANVAS - BOARD CANVAS - BOARD CANVAS - BOARD CANVAS -->
+<!-- BOARD CANVAS - BOARD CANVAS - BOARD CANVAS - BOARD CANVAS - BOARD CANVAS - BOARD CANVAS - BOARD CANVAS - BOARD CANVAS -->
+<!-- BOARD CANVAS - BOARD CANVAS - BOARD CANVAS - BOARD CANVAS - BOARD CANVAS - BOARD CANVAS - BOARD CANVAS - BOARD CANVAS -->
+
+<!-- import { useRef, useEffect } from 'react';
+
+function drawTriangle(ctx: CanvasRenderingContext2D, x: number, top: boolean, color: string) {
+  ctx.beginPath();
+  if (top) {
+    ctx.moveTo(x, 320); // x, y of the first vertex
+    ctx.lineTo(x - 50, 0); // x, y of the second vertex
+    ctx.lineTo(x + 50, 0); // x, y of the third vertex
+  }
+  else {
+    ctx.moveTo(x, 480); // x, y of the first vertex
+    ctx.lineTo(x - 50, 800); // x, y of the second vertex
+    ctx.lineTo(x + 50, 800); // x, y of the third vertex
+  }
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+}
+
+function drawCircle(ctx: CanvasRenderingContext2D, x: number, y: number, color: string) {
+  ctx.beginPath();
+  ctx.arc(x, y, 49, 0, 2 * Math.PI); // x, y, radius, startAngle, endAngle
+  ctx.fillStyle = color;
+  ctx.fill();
+}
+
+export default function Board() {
+  const canvasRef = useRef<HTMLCanvasElement>(null) 
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    
+    ctx.clearRect(0, 0, window.innerWidth, window.innerHeight)
+
+    // background
+    ctx.fillStyle = 'rgb(171, 123, 41)'
+    ctx.fillRect(0, 0, 1400, 800)
+    // middle
+    ctx.fillStyle = 'rgb(151, 103, 21)'
+    ctx.fillRect(600, 0, 100, 800)
+
+    // triangles
+    const red = 'rgb(125, 22, 0)'
+    const white = 'rgb(216, 182, 109)'
+    // top left
+    drawTriangle(ctx, 50, true, white)
+    drawTriangle(ctx, 150, true, red)
+    drawTriangle(ctx, 250, true, white)
+    drawTriangle(ctx, 350, true, red)
+    drawTriangle(ctx, 450, true, white)
+    drawTriangle(ctx, 550, true, red)
+    // bot left
+    drawTriangle(ctx, 50, false, red)
+    drawTriangle(ctx, 150, false, white)
+    drawTriangle(ctx, 250, false, red)
+    drawTriangle(ctx, 350, false, white)
+    drawTriangle(ctx, 450, false, red)
+    drawTriangle(ctx, 550, false, white)
+    // top right
+    drawTriangle(ctx, 750, true, white)
+    drawTriangle(ctx, 850, true, red)
+    drawTriangle(ctx, 950, true, white)
+    drawTriangle(ctx, 1050, true, red)
+    drawTriangle(ctx, 1150, true, white)
+    drawTriangle(ctx, 1250, true, red)
+    // bot left
+    drawTriangle(ctx, 750, false, red)
+    drawTriangle(ctx, 850, false, white)
+    drawTriangle(ctx, 950, false, red)
+    drawTriangle(ctx, 1050, false, white)
+    drawTriangle(ctx, 1150, false, red)
+    drawTriangle(ctx, 1250, false, white)
+    
+    // pieces
+    drawCircle(ctx, 50, 50, 'white')
+    drawCircle(ctx, 50, 150, 'white')
+    drawCircle(ctx, 250, 50, 'black')
+    drawCircle(ctx, 450, 750, 'black')
+  }, []) -->
+
+<!-- BOARD CANVAS - BOARD CANVAS - BOARD CANVAS - BOARD CANVAS - BOARD CANVAS - BOARD CANVAS - BOARD CANVAS - BOARD CANVAS -->
+<!-- BOARD CANVAS - BOARD CANVAS - BOARD CANVAS - BOARD CANVAS - BOARD CANVAS - BOARD CANVAS - BOARD CANVAS - BOARD CANVAS -->
+<!-- BOARD CANVAS - BOARD CANVAS - BOARD CANVAS - BOARD CANVAS - BOARD CANVAS - BOARD CANVAS - BOARD CANVAS - BOARD CANVAS -->
