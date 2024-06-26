@@ -4,7 +4,7 @@ interface Props {
   x: number
   y: number
   color: string
-  onPieceClick: (dX: number, dY: number) => number[]
+  onPieceClick: () => number[]
 }
 
 export default function Piece({x, y, color, onPieceClick}: Props) {
@@ -12,7 +12,7 @@ export default function Piece({x, y, color, onPieceClick}: Props) {
   const [positionY, setPositionY] = useState(y);
 
   const handleClick = () => {
-    const [dX, dY] = onPieceClick(100, 100);
+    const [dX, dY] = onPieceClick();
     setPositionX(positionX + dX);
     setPositionY(positionY + dY);
   };
@@ -21,7 +21,7 @@ export default function Piece({x, y, color, onPieceClick}: Props) {
     position: "absolute",
     left: `${positionX}px`,
     top: `${positionY}px`,
-    transition: 'left 0.2s, top 0.2s',
+    transition: 'left 0.5s, top 0.5s',
   };
 
   return (

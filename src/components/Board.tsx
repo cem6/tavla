@@ -2,52 +2,67 @@ import { useEffect, useState } from "react"
 import { Fragment } from "react"
 import Piece from "./Piece.tsx"
 
+
+
 const initialPositions: number[] = [
   2, 0, 0, 0, 0, -5, 0, -3, 0, 0, 0, 5, 
   -5, 0, 0, 0, 3, 0, 5, 0, 0, 0, 0, -2 
+  // 2, 0, 0, 0, 0, -5, 0, -3, 0, 0, 0, 5, 
+  // -5, 0, 0, 0, 3, 0, 5, 0, 0, 0, 0, -2 
 ]
 const posToX: number[] = [
   720, 660, 600, 540, 480, 420, 300, 240, 180, 120, 60, 0,
   0, 60, 120, 180, 240, 300, 420, 480, 540, 600, 660, 720
 ]
 
+
+
 export default function Board() {
   const [message, setMessage] = useState("hallo")
   const [positions, setPositions] = useState(initialPositions)
   
-  const movePiece = (pos: number, index: number, dist: number) => {
+
+
+  const sameColor = (a: number, b: number) => {
+    return (a <= 0 && b <= 0) || (a >= 0 && b >= 0)
+  }
+
+  const movePiece = (pos: number, index: number, dist: number, y: number) => {
     setMessage(pos + ' ' + index)
-  
-    if (index === Math.abs(positions[pos]) - 1) {
+
+    if (index != Math.abs(positions[pos]) - 1) {
+      console.log("can only move top piece")
+      return [0, 0]
+    }
+    else if (!sameColor(positions[pos], positions[pos + dist])) {
+      console.log("can only move to same color")
+      return [0, 0]
+    }
+    else {
       const newPositions = [...positions];
 
       const prevCnt = positions[pos];
-      // Check if clicked is top piece of pos
+      let newCnt = 0
+      // update positions array
       if (prevCnt < 0) {
-        newPositions[pos]++;
-        newPositions[pos - dist]--;
-      } else {
-        newPositions[pos]--;
-        newPositions[pos + dist]++;
+        newPositions[pos]++ // remove black piece
+        newCnt = --newPositions[pos + dist] // add black piece
+      }
+      else {
+        newPositions[pos]-- // remove white piece
+        newCnt = ++newPositions[pos + dist] // add white piece
       }
 
-      // TODO: fix animations //
-      setMessage("WARTE")
+      // timeout before rerender (time for animation)
       setTimeout(() => {
         setPositions(newPositions);
-        setMessage("_")
-      }, 200)
-      
-      let x = dist * 60
-      if (prevCnt < 0) x = -x
-      if (pos < 12) x = -x
+      }, 500)
 
-      return [x, 0]; // Return dx and dy
-      // TODO: fix animations //
-    }
-    else {
-      console.log("can only move top piece")
-      return[0, 0]
+      // calculate movement directions
+      const dx = posToX[pos + dist] - posToX[pos]  
+      const newY = (pos + dist < 12 ? (Math.abs(newCnt) - 1) * 60 : 740 - (Math.abs(newCnt) - 1) * 60)
+      const dy = newY - y
+      return [dx, dy];
     }
   };
 
@@ -55,8 +70,6 @@ export default function Board() {
   useEffect(() => {
     console.log(positions)
   }, [positions])
-
-
 
 
 
@@ -82,7 +95,7 @@ export default function Board() {
                   key={pieceId} 
                   x={x} y={y} 
                   color={color} 
-                  onPieceClick={() => movePiece(pos, index, 1)} // movePieces could be passed directly
+                  onPieceClick={() => movePiece(pos, index, (cnt < 0 ? -3 : 3), y)} // movePieces could be passed directly
                 />
               )
             })}
