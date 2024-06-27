@@ -4,10 +4,11 @@ interface Props {
   x: number
   y: number
   color: string
+  isPlayable: boolean
   onPieceClick: () => number[]
 }
 
-export default function Piece({x, y, color, onPieceClick}: Props) {
+export default function Piece({x, y, color, isPlayable, onPieceClick}: Props) {
   const [positionX, setPositionX] = useState(x);
   const [positionY, setPositionY] = useState(y);
 
@@ -21,7 +22,7 @@ export default function Piece({x, y, color, onPieceClick}: Props) {
     position: "absolute",
     left: `${positionX}px`,
     top: `${positionY}px`,
-    transition: 'left 0.5s, top 0.5s',
+    transition: 'left 0.3s, top 0.3s',
   };
 
   return (
@@ -32,7 +33,12 @@ export default function Piece({x, y, color, onPieceClick}: Props) {
       style={styles}
       onClick={handleClick}
     >
-      <circle cx="30" cy="30" r="30" fill={color} />
+      <circle 
+        cx="30" cy="30" 
+        r={isPlayable ? "29" : "30"} 
+        fill={color} 
+        stroke={isPlayable ? "deepskyblue" : "none"} strokeWidth="2" 
+      />
     </svg>
   )
 }
