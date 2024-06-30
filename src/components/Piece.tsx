@@ -6,9 +6,10 @@ interface Props {
   color: string
   isPlayable: boolean
   onPieceClick: () => number[]
+  hasDead?: number
 }
 
-export default function Piece({x, y, color, isPlayable, onPieceClick}: Props) {
+export default function Piece({x, y, color, isPlayable, onPieceClick, hasDead }: Props) {
   const [positionX, setPositionX] = useState(x);
   const [positionY, setPositionY] = useState(y);
 
@@ -31,14 +32,25 @@ export default function Piece({x, y, color, isPlayable, onPieceClick}: Props) {
       height="60"
       viewBox="0 0 60 60"
       style={styles}
+      className=""
       onClick={handleClick}
     >
+
       <circle 
         cx="30" cy="30" 
         r={isPlayable ? "29" : "30"} 
         fill={color} 
         stroke={isPlayable ? "deepskyblue" : "none"} strokeWidth="2" 
       />
+
+      {hasDead ? (
+        <foreignObject x="27" y="15" width="60" height="60">
+          <div>
+            <h1 className="text-red-500">{hasDead}</h1>
+          </div>
+        </foreignObject>
+      ) : ("null")}
+
     </svg>
   )
 }
