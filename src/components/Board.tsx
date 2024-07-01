@@ -3,8 +3,10 @@ import { Fragment } from "react"
 import Piece from "./Piece.tsx"
 import Dice from "./Dice.tsx"
 
-// TODO: endgame, pasch, stack pieces
-
+// TODO: endgame, stack pieces
+//
+// stuck when no move possible
+ 
 const initialPositions: number[] = [
   2, 0, 0, 0, 0, -5, 0, -3, 0, 0, 0, 5, 
   -5, 0, 0, 0, 3, 0, 5, 0, 0, 0, 0, -2 
@@ -30,11 +32,19 @@ export default function Board() {
   const [diceSelected2, setDiceSelected2] = useState(false)
   const [diceUsed1, setDiceUsed1] = useState(false)
   const [diceUsed2, setDiceUsed2] = useState(false)
+  const [pasch, setPasch] = useState(false)
   
   const [turnW, setTurnW] = useState(true)
   const [g_dist, setG_Dist] = useState(0)
-  const [deadW, setDeadW] = useState(1)
-  const [deadB, setDeadB] = useState(1)
+  const [deadW, setDeadW] = useState(0)
+  const [deadB, setDeadB] = useState(0)
+
+  // values for pieces in end, once its >= 15 start endgame
+  // for every removed piece +=1, once its == 30 win
+  //
+  // !!!: -=1 for piece being eaten in own end
+  const [endW, setEndW] = useState(5)
+  const [endB, setEndB] = useState(5)
 
 
   const sameColor = (a: number, b: number) => {
@@ -94,7 +104,7 @@ export default function Board() {
   }
 
   const handlePieceClick = (pos: number, index: number, y: number) => {
-    // ?
+    if ((endB >= 15 && positions[pos] < 0) || (endW >= 15 && positions[pos] > 0)) return removePiece(pos, g_dist) // endgame
     return movePiece(pos, index, g_dist, y) // returns [dx, dy]
   }
   const movePiece = (pos: number, index: number, dist: number, y: number) => {
@@ -118,23 +128,28 @@ export default function Board() {
     const newPositions = [...positions];
 
     const prevCnt = positions[pos];
-    if (prevCnt < 0) {
+    const destPos = pos + dist;
+    if (prevCnt < 0) { // black
       newPositions[pos]++ // remove black piece from start
+      newPositions[destPos]-- // add black piece to dest
       if (ate) {
-        newPositions[pos + dist]-- // if piece is eaten, make sure they dont neutralize (1 - 1 = 0)
+        newPositions[destPos]-- // if piece is eaten, make sure they dont neutralize (1 - 1 = 0)
         setDeadW(deadW + 1)
+        if (18 <= destPos && destPos <= 23) setEndW(endW - 1) // white piece being eaten in own end
       }
-      newPositions[pos + dist]-- // add black piece to dest
+      if (pos > 5 && 0 <= destPos && destPos <= 5) setEndB(endB + 1) // black piece reaching end
     }
-    else {
+    else { // white
       newPositions[pos]-- // remove white piece from start
+      newPositions[destPos]++ // add white piece to dest
       if (ate) {
-        newPositions[pos + dist]++ // if piece is eaten, make sure they dont neutralize (1 - 1 = 0)
+        newPositions[destPos]++ // if piece is eaten, make sure they dont neutralize (1 - 1 = 0)
         setDeadB(deadB + 1)
+        if (0 <= destPos && destPos <= 5) setEndB(endB - 1) // black piece being eaten in own end
       }
-      newPositions[pos + dist]++ // add white piece to dest
+      if (pos < 18 && 18 <= destPos && destPos <= 23) setEndW(endW + 1) // white piece reaching end
     }
-    const newCnt = newPositions[pos + dist]
+    const newCnt = newPositions[destPos]
 
     // timeout before rerender (time for .3s animation)
     setTimeout(() => {
@@ -142,12 +157,11 @@ export default function Board() {
     }, 300)
 
     // calculate movement animation directions
-    const dx = posToX[pos + dist] - posToX[pos]
-    const newY = (pos + dist < 12 ? (Math.abs(newCnt) - 1) * 60 : 740 - (Math.abs(newCnt) - 1) * 60)
+    const dx = posToX[destPos] - posToX[pos]
+    const newY = (destPos < 12 ? (Math.abs(newCnt) - 1) * 60 : 740 - (Math.abs(newCnt) - 1) * 60)
     const dy = newY - y
     return [dx, dy];
   }
-
   const moveDeadPiece = (type: number, dist: number) => {
     // type 1: white, type -1: black
     if (type < 0) dist = -dist // black pieces move from 23 to 0
@@ -199,6 +213,11 @@ export default function Board() {
     const dy = newY - (type < 0 ? 640 : 100)
     return [dx, dy]
   }
+  const removePiece = (pos: number, dist: number) => {
+    
+
+    return[0, 0]
+  }
 
 
 
@@ -207,17 +226,28 @@ export default function Board() {
   useEffect(() => {
     console.log(positions)
     if (diceUsed1 && diceUsed2) {
-      setTurnW(!turnW)
-      setDiceVal1(getDiceVal())
-      setDiceVal2(getDiceVal())
-      setDiceSelected1(false)
-      setDiceSelected2(false)
-      setDiceUsed1(false)
-      setDiceUsed2(false)
+      if (diceVal1 == diceVal2 && !pasch) {
+        // use dice twice
+        setPasch(true)
+        setDiceUsed1(false)
+        setDiceUsed2(false)
+      }
+      else {
+        // change turn and reset dice
+        setTurnW(!turnW)
+        setDiceVal1(getDiceVal())
+        setDiceVal2(getDiceVal())
+        setDiceSelected1(false)
+        setDiceSelected2(false)
+        setDiceUsed1(false)
+        setDiceUsed2(false)
+        setPasch(false)
+      }
+      
     }
   }, [positions])
 
-  // triggers on every rerender
+  // triggers on every rerender, propably not neccessary
   useEffect(() => {
     setMessage(String(g_dist))
 
@@ -234,9 +264,15 @@ export default function Board() {
     <>
       <div className="relative select-none">
 
-        <div className="absolute -translate-y-6 flex justify-between w-full">
-          <h2>turn: {turnW ? "white" : "black"}</h2>
-          <h2>dist: {message}</h2>
+        <div className="absolute -translate-y-12 flex justify-between w-full">
+          <div>
+            <h2>turn: {turnW ? "white" : "black"}</h2>
+            <h2>dist: {message}</h2>
+          </div>
+          <div>
+            <h2>endB: {endB}</h2>
+            <h2>endW: {endW}</h2>
+          </div>
         </div>
 
         <img src="board.svg" draggable="false" />
@@ -253,7 +289,6 @@ export default function Board() {
           </div>
           <h1 className="text-red-500">{deadB}</h1>
         </div>
-
 
         {positions.map((cnt, pos) => {
           const x = posToX[pos];
