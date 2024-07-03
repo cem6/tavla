@@ -3,13 +3,13 @@ import { Fragment } from "react"
 import Piece from "./Piece.tsx"
 import Dice from "./Dice.tsx"
 
-// TODO: endgame, stack pieces
-//
-// stuck when no move possible
+// TODO: stack pieces
+// bug: stuck when no move possible
+// bug: canBeRemoved nested ifs 
  
 const initialPositions: number[] = [
   2, 0, 0, 0, 0, -5, 0, -3, 0, 0, 0, 5, 
-  -5, 0, 0, 0, 3, 0, 5, 0, 0, 0, 0, -2 
+  -5, 0, 0, 0, 3, 0, 5, 0, 0, 0, 0, -2
   // 2, 0, 0, 0, 0, -5, 0, -3, 0, 0, 0, 5, 
   // -5, 0, 0, 0, 3, 0, 5, 0, 0, 0, 0, -2 
 ]
@@ -56,7 +56,7 @@ export default function Board() {
     if (type < 0 && !turnW) return true
     return false
   }
-  const canMove = (isTop: boolean, isDead: boolean, start: number, dest: number) => {    
+  const canMove = (isTop: boolean, isDead: boolean, start: number, dest: number) => {
     if (!isDead && ((start < 0 && deadB > 0) || 
                     (start > 0 && deadW > 0)))
       return false // cant move if color has dead piece
@@ -68,6 +68,50 @@ export default function Board() {
     if (dest === 0) return true             // can move to empty
     if (sameColor(start, dest)) return true // can move to same color
     if (Math.abs(dest) < 2) return true     // can move to other color if its only 1
+
+    return false
+  }
+  const canBeRemoved = (isTop: boolean, pos: number, dist: number) => {
+    if (g_dist === 0) return false
+    if (!isTop) return false
+    if (!checkTurn(positions[pos])) return false
+
+    // ekelhaft
+    if (endB >= 15) {
+      if (dist - 1 === pos) return true
+      if (dist - 2 >= 0 && positions[dist - 1] === 0) {
+        if (pos === dist - 2) return true
+        else if (dist - 3 >= 0 && positions[dist - 2] === 0) {
+          if (pos === dist - 3) return true
+          else if (dist - 4 >= 0 && positions[dist - 3] === 0) {
+            if (pos === dist - 4) return true
+            else if (dist - 5 >= 0 && positions[dist - 4] === 0) {
+              if (pos === dist - 5) return true
+              else if (dist - 6 >= 0 && positions[dist - 5] === 0)
+                if (pos === dist - 6) return true
+            }
+          }
+        }
+      }
+    } 
+    if (endW >= 15) {
+      if (23 - dist + 1 === pos) return true
+      if (23 - dist + 2 <= 23 && positions[23 - dist + 1] === 0) {
+        if (pos === 23 - dist + 2) return true;
+        else if (23 - dist + 3 <= 23 && positions[23 - dist + 2] === 0) {
+          if (pos === 23 - dist + 3) return true;
+          else if (23 - dist + 4 <= 23 && positions[23 - dist + 3] === 0) {
+            if (pos === 23 - dist + 4) return true;
+            else if (23 - dist + 5 <= 23 && positions[23 - dist + 4] === 0) {
+              if (pos === 23 - dist + 5) return true;
+              else if (23 - dist + 6 <= 23 && positions[23 - dist + 5] === 0) {
+                if (pos === 23 - dist + 6) return true;
+              }
+            }
+          }
+        }
+      }
+     } 
 
     return false
   }
@@ -104,10 +148,14 @@ export default function Board() {
   }
 
   const handlePieceClick = (pos: number, index: number, y: number) => {
-    if ((endB >= 15 && positions[pos] < 0) || (endW >= 15 && positions[pos] > 0)) return removePiece(pos, g_dist) // endgame
+    if (canBeRemoved(true, pos, g_dist)) {
+      removePiece(pos)
+      return [0, 0]
+    } 
     return movePiece(pos, index, g_dist, y) // returns [dx, dy]
   }
-  const movePiece = (pos: number, index: number, dist: number, y: number) => {
+
+  const movePiece = (pos: number, index: number, dist: number, y: number) => {    
     if (positions[pos] < 0) dist = -dist // black pieces move from 23 to 0
 
     // check if this piece is a top piece and can move to its dest position
@@ -129,7 +177,9 @@ export default function Board() {
 
     const prevCnt = positions[pos];
     const destPos = pos + dist;
-    if (prevCnt < 0) { // black
+     
+    // black
+    if (prevCnt < 0) {
       newPositions[pos]++ // remove black piece from start
       newPositions[destPos]-- // add black piece to dest
       if (ate) {
@@ -139,7 +189,8 @@ export default function Board() {
       }
       if (pos > 5 && 0 <= destPos && destPos <= 5) setEndB(endB + 1) // black piece reaching end
     }
-    else { // white
+    // white
+    else {
       newPositions[pos]-- // remove white piece from start
       newPositions[destPos]++ // add white piece to dest
       if (ate) {
@@ -162,6 +213,7 @@ export default function Board() {
     const dy = newY - y
     return [dx, dy];
   }
+
   const moveDeadPiece = (type: number, dist: number) => {
     // type 1: white, type -1: black
     if (type < 0) dist = -dist // black pieces move from 23 to 0
@@ -213,12 +265,21 @@ export default function Board() {
     const dy = newY - (type < 0 ? 640 : 100)
     return [dx, dy]
   }
-  const removePiece = (pos: number, dist: number) => {
-    
 
-    return[0, 0]
-  }
-
+  const removePiece = (pos: number) => {
+    setG_Dist(0)
+    useDice()
+    const newPositions = [...positions]
+    if (positions[pos] < 0) {
+      newPositions[pos]++
+      setEndB(endB + 1)
+    }
+    else {
+      newPositions[pos]--
+      setEndW(endW + 1)
+    }
+    setPositions(newPositions)
+  } 
 
 
 
@@ -245,7 +306,7 @@ export default function Board() {
       }
       
     }
-  }, [positions])
+  }, [diceUsed1, diceUsed2])
 
   // triggers on every rerender, propably not neccessary
   useEffect(() => {
@@ -307,7 +368,10 @@ export default function Board() {
                     x={x} y={y} 
                     color={color} 
                     onPieceClick={() => handlePieceClick(pos, index, y)}
-                    isPlayable={canMove((index === Math.abs(cnt) - 1), false, positions[pos], positions[pos + (cnt < 0 ? -g_dist : g_dist)])}
+                    isPlayable={
+                      canMove((index === Math.abs(cnt) - 1), false, positions[pos], positions[pos + (cnt < 0 ? -g_dist : g_dist)])
+                      || canBeRemoved((index === Math.abs(cnt) - 1), pos, g_dist)
+                    }
                   />
                 )
               })}
