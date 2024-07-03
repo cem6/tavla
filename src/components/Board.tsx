@@ -6,10 +6,10 @@ import Dice from "./Dice.tsx"
 // TODO: stack pieces, win popup, better dice styles
  
 const initialPositions: number[] = [
+  // 0, 0, 0, 0, -5, 0, 0, 0, 0, 0, 0, 0, 
+  // 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0 
   2, 0, 0, 0, 0, -5, 0, -3, 0, 0, 0, 5, 
   -5, 0, 0, 0, 3, 0, 5, 0, 0, 0, 0, -2 
-  // 2, 0, 0, 0, 0, -5, 0, -3, 0, 0, 0, 5, 
-  // -5, 0, 0, 0, 3, 0, 5, 0, 0, 0, 0, -2 
 ]
 const posToX: number[] = [
   720, 660, 600, 540, 480, 420, 300, 240, 180, 120, 60, 0,
@@ -66,7 +66,7 @@ export default function Board() {
     else if (sameColor(start, dest)) return true // can move to same color
     else if (Math.abs(dest) < 2) return true     // can move to other color if its only 1
     
-    return true
+    return false
   }
 
   const canBeRemoved = (isTop: boolean, pos: number, dist: number) => {
@@ -93,7 +93,7 @@ export default function Board() {
       }
     } 
 
-    return true
+    return false
   }
 
 
