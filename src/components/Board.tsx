@@ -3,13 +3,11 @@ import { Fragment } from "react"
 import Piece from "./Piece.tsx"
 import Dice from "./Dice.tsx"
 
-// TODO: stack pieces
-// bug: stuck when no move possible
-// bug: canBeRemoved nested ifs 
+// TODO: stack pieces, win popup, better dice styles
  
 const initialPositions: number[] = [
   2, 0, 0, 0, 0, -5, 0, -3, 0, 0, 0, 5, 
-  -5, 0, 0, 0, 3, 0, 5, 0, 0, 0, 0, -2
+  -5, 0, 0, 0, 3, 0, 5, 0, 0, 0, 0, -2 
   // 2, 0, 0, 0, 0, -5, 0, -3, 0, 0, 0, 5, 
   // -5, 0, 0, 0, 3, 0, 5, 0, 0, 0, 0, -2 
 ]
@@ -41,8 +39,6 @@ export default function Board() {
 
   // values for pieces in end, once its >= 15 start endgame
   // for every removed piece +=1, once its == 30 win
-  //
-  // !!!: -=1 for piece being eaten in own end
   const [endW, setEndW] = useState(5)
   const [endB, setEndB] = useState(5)
 
@@ -56,6 +52,7 @@ export default function Board() {
     if (type < 0 && !turnW) return true
     return false
   }
+
   const canMove = (isTop: boolean, isDead: boolean, start: number, dest: number) => {
     if (!isDead && ((start < 0 && deadB > 0) || 
                     (start > 0 && deadW > 0)))
@@ -65,59 +62,41 @@ export default function Board() {
     if (!checkTurn(start)) return false // can only move in own turn
     if (!isTop) return false            // can only move top piece
 
-    if (dest === 0) return true             // can move to empty
-    if (sameColor(start, dest)) return true // can move to same color
-    if (Math.abs(dest) < 2) return true     // can move to other color if its only 1
-
-    return false
+    if (dest === 0) return true                  // can move to empty
+    else if (sameColor(start, dest)) return true // can move to same color
+    else if (Math.abs(dest) < 2) return true     // can move to other color if its only 1
+    
+    return true
   }
+
   const canBeRemoved = (isTop: boolean, pos: number, dist: number) => {
     if (g_dist === 0) return false
     if (!isTop) return false
     if (!checkTurn(positions[pos])) return false
 
-    // ekelhaft
     if (endB >= 15) {
-      if (dist - 1 === pos) return true
-      if (dist - 2 >= 0 && positions[dist - 1] === 0) {
-        if (pos === dist - 2) return true
-        else if (dist - 3 >= 0 && positions[dist - 2] === 0) {
-          if (pos === dist - 3) return true
-          else if (dist - 4 >= 0 && positions[dist - 3] === 0) {
-            if (pos === dist - 4) return true
-            else if (dist - 5 >= 0 && positions[dist - 4] === 0) {
-              if (pos === dist - 5) return true
-              else if (dist - 6 >= 0 && positions[dist - 5] === 0)
-                if (pos === dist - 6) return true
-            }
-          }
-        }
+      if (dist === pos + 1) return true
+      // check if every pos from furthest end to pos excluding is empty
+      if (dist >= pos + 1) {
+        for (let i = (6) - 1; i >= pos + 1; i--)
+          if (positions[i] != 0) return false
+        return true
       }
     } 
     if (endW >= 15) {
-      if (23 - dist + 1 === pos) return true
-      if (23 - dist + 2 <= 23 && positions[23 - dist + 1] === 0) {
-        if (pos === 23 - dist + 2) return true;
-        else if (23 - dist + 3 <= 23 && positions[23 - dist + 2] === 0) {
-          if (pos === 23 - dist + 3) return true;
-          else if (23 - dist + 4 <= 23 && positions[23 - dist + 3] === 0) {
-            if (pos === 23 - dist + 4) return true;
-            else if (23 - dist + 5 <= 23 && positions[23 - dist + 4] === 0) {
-              if (pos === 23 - dist + 5) return true;
-              else if (23 - dist + 6 <= 23 && positions[23 - dist + 5] === 0) {
-                if (pos === 23 - dist + 6) return true;
-              }
-            }
-          }
-        }
+      if (dist === 24 - pos) return true
+      // check if every pos from furthest end to pos excluding is empty
+      if (dist >= 24 - pos) {
+        for (let i = 24 - (6); i >= 24 - pos; i--)
+          if (positions[i] != 0) return false
+        return true
       }
-     } 
+    } 
 
-    return false
+    return true
   }
 
 
-  /* --- handle clicks --- */
   const handleDiceClick = (id: number) => {
     if (id === 1) {
       if(!diceUsed1) {
@@ -136,6 +115,7 @@ export default function Board() {
       // sound oder animation ?
     }
   }
+
   const useDice = () => {
     if (diceSelected1) {
       setDiceUsed1(true)
@@ -145,6 +125,18 @@ export default function Board() {
       setDiceUsed2(true)
       if (!diceUsed1) handleDiceClick(1)
     }
+  }
+
+  const resetDice = () => {
+    // change turn and reset dice
+    setTurnW(!turnW)
+    setDiceVal1(getDiceVal())
+    setDiceVal2(getDiceVal())
+    setDiceSelected1(false)
+    setDiceSelected2(false)
+    setDiceUsed1(false)
+    setDiceUsed2(false)
+    setPasch(false)
   }
 
   const handlePieceClick = (pos: number, index: number, y: number) => {
@@ -279,7 +271,7 @@ export default function Board() {
       setEndW(endW + 1)
     }
     setPositions(newPositions)
-  } 
+  }
 
 
 
@@ -294,17 +286,8 @@ export default function Board() {
         setDiceUsed2(false)
       }
       else {
-        // change turn and reset dice
-        setTurnW(!turnW)
-        setDiceVal1(getDiceVal())
-        setDiceVal2(getDiceVal())
-        setDiceSelected1(false)
-        setDiceSelected2(false)
-        setDiceUsed1(false)
-        setDiceUsed2(false)
-        setPasch(false)
+        resetDice()
       }
-      
     }
   }, [diceUsed1, diceUsed2])
 
@@ -312,7 +295,7 @@ export default function Board() {
   useEffect(() => {
     setMessage(String(g_dist))
 
-    if (!diceSelected1 && !diceSelected2) setDiceSelected1(true) 
+    if (!diceSelected1 && !diceSelected2) setDiceSelected1(true)
 
     if (diceSelected1) setG_Dist(diceVal1)
     else if (diceSelected2) setG_Dist(diceVal2)
@@ -351,6 +334,12 @@ export default function Board() {
           <h1 className="text-red-500">{deadB}</h1>
         </div>
 
+        <div onClick={resetDice} 
+          className="absolute top-1/2 left-1/2 transform -translate-x-40 -translate-y-1/2 p-2 bg-gray-300 text-black border-2 border-black text-2xl"
+        >
+          <h2>DONE</h2>
+        </div>
+
         {positions.map((cnt, pos) => {
           const x = posToX[pos];
           const color = cnt < 0 ? "black" : "white";
@@ -362,6 +351,7 @@ export default function Board() {
               {[...Array(pieceCount)].map((_, index) => {
                 const y = yBase + index * yStep;
                 const pieceId = `${pos}-${index}`; // Generate unique ID
+                const isTop = index === Math.abs(cnt) - 1
                 return (
                   <Piece 
                     key={pieceId} 
@@ -369,8 +359,8 @@ export default function Board() {
                     color={color} 
                     onPieceClick={() => handlePieceClick(pos, index, y)}
                     isPlayable={
-                      canMove((index === Math.abs(cnt) - 1), false, positions[pos], positions[pos + (cnt < 0 ? -g_dist : g_dist)])
-                      || canBeRemoved((index === Math.abs(cnt) - 1), pos, g_dist)
+                      canMove(isTop, false, positions[pos], positions[pos + (cnt < 0 ? -g_dist : g_dist)])
+                      || canBeRemoved(isTop, pos, g_dist)
                     }
                   />
                 )
@@ -410,7 +400,4 @@ export default function Board() {
     </>
   )
 }
-
-
-
 
