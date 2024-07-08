@@ -5,11 +5,12 @@ interface Props {
   y: number
   color: string
   isPlayable: boolean
+  isRemovable: boolean
   onPieceClick: () => number[]
   hasDead?: number
 }
 
-export default function Piece({x, y, color, isPlayable, onPieceClick, hasDead }: Props) {
+export default function Piece({x, y, color, isPlayable, isRemovable, onPieceClick, hasDead }: Props) {
   const [positionX, setPositionX] = useState(x);
   const [positionY, setPositionY] = useState(y);
 
@@ -40,7 +41,8 @@ export default function Piece({x, y, color, isPlayable, onPieceClick, hasDead }:
         cx="30" cy="30" 
         r={isPlayable ? "29" : "30"} 
         fill={color} 
-        stroke={isPlayable ? "deepskyblue" : "none"} strokeWidth="2" 
+        strokeWidth="2"
+        stroke={isRemovable ? "fuchsia" : (isPlayable ? "deepskyblue" : "none")} 
       />
 
       {hasDead ? (

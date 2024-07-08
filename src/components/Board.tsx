@@ -4,12 +4,14 @@ import Piece from "./Piece.tsx"
 import Dice from "./Dice.tsx"
 
 // TODO: stack pieces, win popup, better dice styles
+//       fixbug: can still remove even if piece was eaten
+//       by: new seperate states for endgame (isEndW, endCountW oder so)
  
 const initialPositions: number[] = [
-  // 0, 0, 0, 0, -5, 0, 0, 0, 0, 0, 0, 0, 
-  // 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0 
-  2, 0, 0, 0, 0, -5, 0, -3, 0, 0, 0, 5, 
-  -5, 0, 0, 0, 3, 0, 5, 0, 0, 0, 0, -2 
+  -3, -3, -3, -3, -3, 0, 0, 0, 0, 0, 0, 0, 
+  0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3 
+  // 2, 0, 0, 0, 0, -5, 0, -3, 0, 0, 0, 5, 
+  // -5, 0, 0, 0, 3, 0, 5, 0, 0, 0, 0, -2 
 ]
 const posToX: number[] = [
   720, 660, 600, 540, 480, 420, 300, 240, 180, 120, 60, 0,
@@ -37,10 +39,14 @@ export default function Board() {
   const [deadW, setDeadW] = useState(0)
   const [deadB, setDeadB] = useState(0)
 
+  // DOESNT WORK: when piece is eaten color can still remove
   // values for pieces in end, once its >= 15 start endgame
   // for every removed piece +=1, once its == 30 win
-  const [endW, setEndW] = useState(5)
-  const [endB, setEndB] = useState(5)
+  const [endW, setEndW] = useState(15)
+  const [endB, setEndB] = useState(15)
+  // SOLUTION::::
+  const [canRemoveW, setCanRemoveW] = useState(false)
+  const [canRemoveB, setCanRemoveB] = useState(false)
 
 
   const sameColor = (a: number, b: number) => {
@@ -74,22 +80,24 @@ export default function Board() {
     if (!isTop) return false
     if (!checkTurn(positions[pos])) return false
 
-    if (endB >= 15) {
+    if (endB >= 15 && positions[pos] < 0) {
       if (dist === pos + 1) return true
-      // check if every pos from furthest end to pos excluding is empty
+      // check if every pos from furthest (5) to pos excluding is empty
       if (dist >= pos + 1) {
-        for (let i = (6) - 1; i >= pos + 1; i--)
+        for (let i = 5; i > pos; i--) {
           if (positions[i] != 0) return false
+        }
         return true
       }
     } 
-    if (endW >= 15) {
+    if (endW >= 15 && positions[pos] > 0) {
       if (dist === 24 - pos) return true
-      // check if every pos from furthest end to pos excluding is empty
+      // check if every pos from furthest (18) to pos excluding is empty
       if (dist >= 24 - pos) {
-        for (let i = 24 - (6); i >= 24 - pos; i--)
+        for (let i = 18; i < pos; i++) {
           if (positions[i] != 0) return false
-        return true
+        }
+        return true;
       }
     } 
 
@@ -140,10 +148,14 @@ export default function Board() {
   }
 
   const handlePieceClick = (pos: number, index: number, y: number) => {
-    if (canBeRemoved(true, pos, g_dist)) {
+    console.log("--------\npiece clicked: " + pos + " " + g_dist)
+    if (canBeRemoved((index === Math.abs(positions[pos]) - 1), pos, g_dist)) {
       removePiece(pos)
       return [0, 0]
-    } 
+    }
+    else {
+      console.log("cant remove this piece")
+    }
     return movePiece(pos, index, g_dist, y) // returns [dx, dy]
   }
 
@@ -167,9 +179,8 @@ export default function Board() {
 
     const newPositions = [...positions];
 
-    const prevCnt = positions[pos];
-    const destPos = pos + dist;
-     
+    const prevCnt = positions[pos]
+    const destPos = pos + dist
     // black
     if (prevCnt < 0) {
       newPositions[pos]++ // remove black piece from start
@@ -228,21 +239,24 @@ export default function Board() {
 
     const newPositions = [...positions]
 
+    const destPos = pos + dist
     if (type < 0) {
       if (ate) {
-        newPositions[pos + dist]--
+        newPositions[destPos]--
         setDeadW(deadW + 1)
+        if (18 <= destPos && destPos <= 23) setEndW(endW - 1)
       }
-      newPositions[pos + dist]-- // add black piece
+      newPositions[destPos]--
     }
     else {
       if (ate) {
-        newPositions[pos + dist]++
+        newPositions[destPos]++
         setDeadB(deadB + 1)
+        if (0 <= destPos && destPos <= 5) setEndB(endB - 1) 
       }
-      newPositions[pos + dist]++ // add white piece
+      newPositions[destPos]++ 
     }
-    const newCnt = newPositions[pos + dist]
+    const newCnt = newPositions[destPos]
 
     // timeout before rerender (time for .3s animation)
     setTimeout(() => {
@@ -252,7 +266,7 @@ export default function Board() {
     }, 300)
 
     // calculate movement animation directions
-    const dx = posToX[pos + dist] - 360
+    const dx = posToX[destPos] - 360
     const newY = (type > 0 ? (Math.abs(newCnt) - 1) * 60 : 740 - (Math.abs(newCnt) - 1) * 60)
     const dy = newY - (type < 0 ? 640 : 100)
     return [dx, dy]
@@ -358,10 +372,8 @@ export default function Board() {
                     x={x} y={y} 
                     color={color} 
                     onPieceClick={() => handlePieceClick(pos, index, y)}
-                    isPlayable={
-                      canMove(isTop, false, positions[pos], positions[pos + (cnt < 0 ? -g_dist : g_dist)])
-                      || canBeRemoved(isTop, pos, g_dist)
-                    }
+                    isPlayable={canMove(isTop, false, positions[pos], positions[pos + (cnt < 0 ? -g_dist : g_dist)])}
+                    isRemovable={canBeRemoved(isTop, pos, g_dist)}
                   />
                 )
               })}
@@ -377,6 +389,7 @@ export default function Board() {
                 color={"white"}
                 onPieceClick={() => moveDeadPiece(1, g_dist)}
                 isPlayable={canMove(true, true, 1, positions[-1 + g_dist])}
+                isRemovable={false}
                 hasDead={deadW}
               >
               </Piece>
@@ -390,6 +403,7 @@ export default function Board() {
                 color={"black"}
                 onPieceClick={() => moveDeadPiece(-1, g_dist)}
                 isPlayable={canMove(true, true, -1, positions[24 - g_dist])}
+                isRemovable={false}
                 hasDead={deadB}
               >
               </Piece>
