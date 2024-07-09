@@ -3,13 +3,11 @@ import { Fragment } from "react"
 import Piece from "./Piece.tsx"
 import Dice from "./Dice.tsx"
 
-// TODO: stack pieces, win popup, better dice styles
-//       fixbug: can still remove even if piece was eaten
-//       by: new seperate states for endgame (isEndW, endCountW oder so)
+// TODO: win popup, better dice styles, stack pieces (maybe), p2p online
  
 const initialPositions: number[] = [
-  -3, -3, -3, -3, -3, 0, 0, 0, 0, 0, 0, 0, 
-  0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3 
+  2, 0, 0, 0, 0, -5, 0, -3, 0, 0, 0, 5, 
+  -5, 0, 0, 0, 3, 0, 5, 0, 0, 0, 0, -2
   // 2, 0, 0, 0, 0, -5, 0, -3, 0, 0, 0, 5, 
   // -5, 0, 0, 0, 3, 0, 5, 0, 0, 0, 0, -2 
 ]
@@ -39,19 +37,19 @@ export default function Board() {
   const [deadW, setDeadW] = useState(0)
   const [deadB, setDeadB] = useState(0)
 
-  // DOESNT WORK: when piece is eaten color can still remove
-  // values for pieces in end, once its >= 15 start endgame
-  // for every removed piece +=1, once its == 30 win
-  const [endW, setEndW] = useState(15)
-  const [endB, setEndB] = useState(15)
-  // SOLUTION::::
-  const [canRemoveW, setCanRemoveW] = useState(false)
-  const [canRemoveB, setCanRemoveB] = useState(false)
+  // count pieces outside of end, once 0 => can remove
+  // fixes being able to remove is piece was eaten
+  const [outsideW, setOutsideW] = useState(10)
+  const [outsideB, setOutsideB] = useState(10)
+  // -=1 for every piece removed, once 0 => win
+  const [toRemoveW, setToRemoveW] = useState(15)
+  const [toRemoveB, setToRemoveB] = useState(15)
 
 
   const sameColor = (a: number, b: number) => {
     return (a <= 0 && b <= 0) || (a >= 0 && b >= 0)
   }
+
   const checkTurn = (type: number) => {
     // return ((type < 0 && !turnW) || (type > 0 && turnW))
     if (type > 0 && turnW) return true
@@ -80,7 +78,7 @@ export default function Board() {
     if (!isTop) return false
     if (!checkTurn(positions[pos])) return false
 
-    if (endB >= 15 && positions[pos] < 0) {
+    if (outsideB === 0 && positions[pos] < 0) {
       if (dist === pos + 1) return true
       // check if every pos from furthest (5) to pos excluding is empty
       if (dist >= pos + 1) {
@@ -90,7 +88,7 @@ export default function Board() {
         return true
       }
     } 
-    if (endW >= 15 && positions[pos] > 0) {
+    if (outsideW === 0 && positions[pos] > 0) {
       if (dist === 24 - pos) return true
       // check if every pos from furthest (18) to pos excluding is empty
       if (dist >= 24 - pos) {
@@ -103,6 +101,145 @@ export default function Board() {
 
     return false
   }
+
+
+  const handlePieceClick = (pos: number, index: number, y: number) => {
+    console.log("--------\npiece clicked: " + pos + " " + g_dist)
+    if (canBeRemoved((index === Math.abs(positions[pos]) - 1), pos, g_dist)) {
+      removePiece(pos)
+      return [0, 0]
+    }
+    return movePiece(pos, index, g_dist, y) // returns [dx, dy]
+  }
+
+  const movePiece = (pos: number, index: number, dist: number, y: number) => {    
+    if (positions[pos] < 0) dist = -dist // black pieces move from 23 to 0
+
+    // check if this piece is a top piece and can move to its dest position
+    if (!canMove((index === Math.abs(positions[pos]) - 1), false, positions[pos], positions[pos + dist])) {
+      console.log("cant move this piece")
+      return [0, 0]
+    }
+    // check if this piece eats another piece
+    let ate = false
+    if (!sameColor(positions[pos], positions[pos + dist])) {
+      console.log("ate another piece")
+      ate = true
+    }
+
+    setG_Dist(0)
+    useDice()
+
+    const newPositions = [...positions];
+
+    const prevCnt = positions[pos]
+    const destPos = pos + dist
+    // black
+    if (prevCnt < 0) {
+      newPositions[pos]++ // remove black piece from start
+      newPositions[destPos]-- // add black piece to dest
+      if (ate) {
+        newPositions[destPos]-- // if piece is eaten, make sure they dont neutralize (1 - 1 = 0)
+        setDeadW(deadW + 1)
+        if (18 <= destPos && destPos <= 23) setOutsideW(outsideW + 1) // white piece being eaten in own end
+      }
+      if (pos > 5 && 0 <= destPos && destPos <= 5) setOutsideB(outsideB - 1) // black piece reaching end
+    }
+    // white
+    else {
+      newPositions[pos]-- // remove white piece from start
+      newPositions[destPos]++ // add white piece to dest
+      if (ate) {
+        newPositions[destPos]++ // if piece is eaten, make sure they dont neutralize (1 - 1 = 0)
+        setDeadB(deadB + 1)
+        if (0 <= destPos && destPos <= 5) setOutsideB(outsideB + 1) // black piece being eaten in own end
+      }
+      if (pos < 18 && 18 <= destPos && destPos <= 23) setOutsideW(outsideW - 1) // white piece reaching end
+    }
+    const newCnt = newPositions[destPos]
+
+    // timeout before rerender (time for .3s animation)
+    setTimeout(() => {
+      setPositions(newPositions);
+    }, 300)
+
+    // calculate movement animation directions
+    const dx = posToX[destPos] - posToX[pos]
+    const newY = (destPos < 12 ? (Math.abs(newCnt) - 1) * 60 : 740 - (Math.abs(newCnt) - 1) * 60)
+    const dy = newY - y
+    return [dx, dy];
+  }
+
+  const moveDeadPiece = (type: number, dist: number) => {
+    // type 1: white, type -1: black
+    if (type < 0) dist = -dist // black pieces move from 23 to 0
+    const pos = (type < 0 ? 24 : -1)
+    
+    // check if this piece can move to its dest position
+    if (!canMove(true, true, type, positions[pos + dist])) {
+      console.log("cant move this piece! " + type + ' ' + positions[pos + dist])
+      return [0, 0]
+    }
+    // check if this peace eats another piece
+    let ate = false
+    if (!sameColor(type, positions[pos + dist])) {
+      console.log("ate another piece")
+      ate = true
+    }
+
+    setG_Dist(0)
+    useDice()
+
+    const newPositions = [...positions]
+
+    const destPos = pos + dist
+    if (type < 0) {
+      if (ate) {
+        newPositions[destPos]--
+        setDeadW(deadW + 1)
+        if (18 <= destPos && destPos <= 23) setOutsideW(outsideW + 1)
+      }
+      newPositions[destPos]--
+    }
+    else {
+      if (ate) {
+        newPositions[destPos]++
+        setDeadB(deadB + 1)
+        if (0 <= destPos && destPos <= 5) setOutsideB(outsideB + 1)
+      }
+      newPositions[destPos]++ 
+    }
+    const newCnt = newPositions[destPos]
+
+    // timeout before rerender (time for .3s animation)
+    setTimeout(() => {
+      setPositions(newPositions)
+      // pieces have to be removed after animation, else they will disapper before animation starts
+      type < 0 ? setDeadB(deadB - 1) : setDeadW(deadW - 1) 
+    }, 300)
+
+    // calculate movement animation directions
+    const dx = posToX[destPos] - 360
+    const newY = (type > 0 ? (Math.abs(newCnt) - 1) * 60 : 740 - (Math.abs(newCnt) - 1) * 60)
+    const dy = newY - (type < 0 ? 640 : 100)
+    return [dx, dy]
+  }
+
+  const removePiece = (pos: number) => {
+    setG_Dist(0)
+    useDice()
+    const newPositions = [...positions]
+    if (positions[pos] < 0) {
+      newPositions[pos]++
+      setToRemoveB(toRemoveB - 1)
+    }
+    else {
+      newPositions[pos]--
+      setToRemoveW(toRemoveW - 1)
+    }
+    setPositions(newPositions)
+  }
+
 
 
   const handleDiceClick = (id: number) => {
@@ -147,149 +284,6 @@ export default function Board() {
     setPasch(false)
   }
 
-  const handlePieceClick = (pos: number, index: number, y: number) => {
-    console.log("--------\npiece clicked: " + pos + " " + g_dist)
-    if (canBeRemoved((index === Math.abs(positions[pos]) - 1), pos, g_dist)) {
-      removePiece(pos)
-      return [0, 0]
-    }
-    else {
-      console.log("cant remove this piece")
-    }
-    return movePiece(pos, index, g_dist, y) // returns [dx, dy]
-  }
-
-  const movePiece = (pos: number, index: number, dist: number, y: number) => {    
-    if (positions[pos] < 0) dist = -dist // black pieces move from 23 to 0
-
-    // check if this piece is a top piece and can move to its dest position
-    if (!canMove((index === Math.abs(positions[pos]) - 1), false, positions[pos], positions[pos + dist])) {
-      console.log("cant move this piece")
-      return [0, 0]
-    }
-    // check if this piece eats another piece
-    let ate = false
-    if (!sameColor(positions[pos], positions[pos + dist])) {
-      console.log("ate another piece")
-      ate = true
-    }
-
-    setG_Dist(0)
-    useDice()
-
-    const newPositions = [...positions];
-
-    const prevCnt = positions[pos]
-    const destPos = pos + dist
-    // black
-    if (prevCnt < 0) {
-      newPositions[pos]++ // remove black piece from start
-      newPositions[destPos]-- // add black piece to dest
-      if (ate) {
-        newPositions[destPos]-- // if piece is eaten, make sure they dont neutralize (1 - 1 = 0)
-        setDeadW(deadW + 1)
-        if (18 <= destPos && destPos <= 23) setEndW(endW - 1) // white piece being eaten in own end
-      }
-      if (pos > 5 && 0 <= destPos && destPos <= 5) setEndB(endB + 1) // black piece reaching end
-    }
-    // white
-    else {
-      newPositions[pos]-- // remove white piece from start
-      newPositions[destPos]++ // add white piece to dest
-      if (ate) {
-        newPositions[destPos]++ // if piece is eaten, make sure they dont neutralize (1 - 1 = 0)
-        setDeadB(deadB + 1)
-        if (0 <= destPos && destPos <= 5) setEndB(endB - 1) // black piece being eaten in own end
-      }
-      if (pos < 18 && 18 <= destPos && destPos <= 23) setEndW(endW + 1) // white piece reaching end
-    }
-    const newCnt = newPositions[destPos]
-
-    // timeout before rerender (time for .3s animation)
-    setTimeout(() => {
-      setPositions(newPositions);
-    }, 300)
-
-    // calculate movement animation directions
-    const dx = posToX[destPos] - posToX[pos]
-    const newY = (destPos < 12 ? (Math.abs(newCnt) - 1) * 60 : 740 - (Math.abs(newCnt) - 1) * 60)
-    const dy = newY - y
-    return [dx, dy];
-  }
-
-  const moveDeadPiece = (type: number, dist: number) => {
-    // type 1: white, type -1: black
-    if (type < 0) dist = -dist // black pieces move from 23 to 0
-    const pos = (type < 0 ? 24 : -1)
-    
-    // check if this piece can move to its dest position
-    if (!canMove(true, true, type, positions[pos + dist])) {
-      console.log("cant move this piece! " + type + ' ' + positions[pos + dist])
-      return [0, 0]
-    }
-    // check if this peace eats another piece
-    let ate = false
-    if (!sameColor(type, positions[pos + dist])) {
-      console.log("ate another piece")
-      ate = true
-    }
-
-    setG_Dist(0)
-    useDice()
-
-    const newPositions = [...positions]
-
-    const destPos = pos + dist
-    if (type < 0) {
-      if (ate) {
-        newPositions[destPos]--
-        setDeadW(deadW + 1)
-        if (18 <= destPos && destPos <= 23) setEndW(endW - 1)
-      }
-      newPositions[destPos]--
-    }
-    else {
-      if (ate) {
-        newPositions[destPos]++
-        setDeadB(deadB + 1)
-        if (0 <= destPos && destPos <= 5) setEndB(endB - 1) 
-      }
-      newPositions[destPos]++ 
-    }
-    const newCnt = newPositions[destPos]
-
-    // timeout before rerender (time for .3s animation)
-    setTimeout(() => {
-      setPositions(newPositions)
-      // pieces have to be removed after animation, else they will disapper before animation starts
-      type < 0 ? setDeadB(deadB - 1) : setDeadW(deadW - 1) 
-    }, 300)
-
-    // calculate movement animation directions
-    const dx = posToX[destPos] - 360
-    const newY = (type > 0 ? (Math.abs(newCnt) - 1) * 60 : 740 - (Math.abs(newCnt) - 1) * 60)
-    const dy = newY - (type < 0 ? 640 : 100)
-    return [dx, dy]
-  }
-
-  const removePiece = (pos: number) => {
-    setG_Dist(0)
-    useDice()
-    const newPositions = [...positions]
-    if (positions[pos] < 0) {
-      newPositions[pos]++
-      setEndB(endB + 1)
-    }
-    else {
-      newPositions[pos]--
-      setEndW(endW + 1)
-    }
-    setPositions(newPositions)
-  }
-
-
-
-
   useEffect(() => {
     console.log(positions)
     if (diceUsed1 && diceUsed2) {
@@ -328,8 +322,8 @@ export default function Board() {
             <h2>dist: {message}</h2>
           </div>
           <div>
-            <h2>endB: {endB}</h2>
-            <h2>endW: {endW}</h2>
+            <h2>outisdeB: {outsideB} toRemoveB: {toRemoveB}</h2>
+            <h2>outisdeW: {outsideW} toRemoveW: {toRemoveW}</h2>
           </div>
         </div>
 

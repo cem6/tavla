@@ -42,7 +42,7 @@ export default function Piece({x, y, color, isPlayable, isRemovable, onPieceClic
         r={isPlayable ? "29" : "30"} 
         fill={color} 
         strokeWidth="2"
-        stroke={isRemovable ? "fuchsia" : (isPlayable ? "deepskyblue" : "none")} 
+        stroke={isPlayable ? "deepskyblue" : (isRemovable ? "fuchsia" : "none")} 
       />
 
       {hasDead ? (
