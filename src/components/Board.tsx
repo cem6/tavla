@@ -2,8 +2,11 @@ import { useEffect, useState } from "react"
 import { Fragment } from "react"
 import Piece from "./Piece.tsx"
 import Dice from "./Dice.tsx"
+import Popup from "./Popup.tsx";
 
-// TODO: win popup, better dice styles, stack pieces (maybe), p2p online
+// TODO: auto end turn when stuck, dice animation and styles
+//       bisschen schoner alles, stack pieces (maybe), p2p online
+
  
 const initialPositions: number[] = [
   2, 0, 0, 0, 0, -5, 0, -3, 0, 0, 0, 5, 
@@ -21,7 +24,6 @@ const getDiceVal = () => {
 }
 
 export default function Board() {
-  const [message, setMessage] = useState("hallo")
   const [positions, setPositions] = useState(initialPositions)
 
   const [diceVal1, setDiceVal1] = useState(getDiceVal())
@@ -65,10 +67,9 @@ export default function Board() {
     if (g_dist === 0) return false      // cant move with dist 0
     if (!checkTurn(start)) return false // can only move in own turn
     if (!isTop) return false            // can only move top piece
-
-    if (dest === 0) return true                  // can move to empty
-    else if (sameColor(start, dest)) return true // can move to same color
-    else if (Math.abs(dest) < 2) return true     // can move to other color if its only 1
+    
+    if (Math.abs(dest) < 2) return true     // can move to empty or other color if its only 1
+    if (sameColor(start, dest)) return true // can move to same color
     
     return false
   }
@@ -301,8 +302,6 @@ export default function Board() {
 
   // triggers on every rerender, propably not neccessary
   useEffect(() => {
-    setMessage(String(g_dist))
-
     if (!diceSelected1 && !diceSelected2) setDiceSelected1(true)
 
     if (diceSelected1) setG_Dist(diceVal1)
@@ -319,11 +318,15 @@ export default function Board() {
         <div className="absolute -translate-y-12 flex justify-between w-full">
           <div>
             <h2>turn: {turnW ? "white" : "black"}</h2>
-            <h2>dist: {message}</h2>
+            <h2>dist: {g_dist}</h2>
           </div>
           <div>
-            <h2>outisdeB: {outsideB} toRemoveB: {toRemoveB}</h2>
-            <h2>outisdeW: {outsideW} toRemoveW: {toRemoveW}</h2>
+            <h2>outsideB: {outsideB}</h2>
+            <h2>outsideW: {outsideW}</h2>
+          </div>
+          <div>
+            <h2>toRemoveB: {toRemoveB}</h2>
+            <h2>toRemoveW: {toRemoveW}</h2>
           </div>
         </div>
 
@@ -342,9 +345,7 @@ export default function Board() {
           <h1 className="text-red-500">{deadB}</h1>
         </div>
 
-        <div onClick={resetDice} 
-          className="absolute top-1/2 left-1/2 transform -translate-x-40 -translate-y-1/2 p-2 bg-gray-300 text-black border-2 border-black text-2xl"
-        >
+        <div onClick={resetDice} className="absolute top-1/2 left-1/2 transform -translate-x-40 -translate-y-1/2 p-2 bg-gray-300 text-black border-2 border-black text-2xl">
           <h2>DONE</h2>
         </div>
 
@@ -405,6 +406,9 @@ export default function Board() {
         ) : null}
 
       </div>
+
+      {toRemoveW === 0 ? <Popup>white</Popup> : null}
+      {toRemoveB === 0 ? <Popup>black</Popup> : null}
     </>
   )
 }
