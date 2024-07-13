@@ -7,12 +7,12 @@ import Popup from "./Popup.tsx";
 // TODO: auto end turn when stuck, dice animation and styles
 //       bisschen schoner alles, stack pieces (maybe), p2p online
 
- 
+
 const initialPositions: number[] = [
-  2, 0, 0, 0, 0, -5, 0, -3, 0, 0, 0, 5, 
+  2, 0, 0, 0, 0, -5, 0, -3, 0, 0, 0, 5,
   -5, 0, 0, 0, 3, 0, 5, 0, 0, 0, 0, -2
-  // 2, 0, 0, 0, 0, -5, 0, -3, 0, 0, 0, 5, 
-  // -5, 0, 0, 0, 3, 0, 5, 0, 0, 0, 0, -2 
+  // 2, 0, 0, 0, 0, -5, 0, -3, 0, 0, 0, 5,
+  // -5, 0, 0, 0, 3, 0, 5, 0, 0, 0, 0, -2
 ]
 const posToX: number[] = [
   720, 660, 600, 540, 480, 420, 300, 240, 180, 120, 60, 0,
@@ -33,7 +33,7 @@ export default function Board() {
   const [diceUsed1, setDiceUsed1] = useState(false)
   const [diceUsed2, setDiceUsed2] = useState(false)
   const [pasch, setPasch] = useState(false)
-  
+
   const [turnW, setTurnW] = useState(true)
   const [g_dist, setG_Dist] = useState(0)
   const [deadW, setDeadW] = useState(0)
@@ -60,17 +60,17 @@ export default function Board() {
   }
 
   const canMove = (isTop: boolean, isDead: boolean, start: number, dest: number) => {
-    if (!isDead && ((start < 0 && deadB > 0) || 
+    if (!isDead && ((start < 0 && deadB > 0) ||
                     (start > 0 && deadW > 0)))
       return false // cant move if color has dead piece
-      
+
     if (g_dist === 0) return false      // cant move with dist 0
     if (!checkTurn(start)) return false // can only move in own turn
     if (!isTop) return false            // can only move top piece
-    
+
     if (Math.abs(dest) < 2) return true     // can move to empty or other color if its only 1
     if (sameColor(start, dest)) return true // can move to same color
-    
+
     return false
   }
 
@@ -88,7 +88,7 @@ export default function Board() {
         }
         return true
       }
-    } 
+    }
     if (outsideW === 0 && positions[pos] > 0) {
       if (dist === 24 - pos) return true
       // check if every pos from furthest (18) to pos excluding is empty
@@ -98,7 +98,7 @@ export default function Board() {
         }
         return true;
       }
-    } 
+    }
 
     return false
   }
@@ -113,7 +113,7 @@ export default function Board() {
     return movePiece(pos, index, g_dist, y) // returns [dx, dy]
   }
 
-  const movePiece = (pos: number, index: number, dist: number, y: number) => {    
+  const movePiece = (pos: number, index: number, dist: number, y: number) => {
     if (positions[pos] < 0) dist = -dist // black pieces move from 23 to 0
 
     // check if this piece is a top piece and can move to its dest position
@@ -175,7 +175,7 @@ export default function Board() {
     // type 1: white, type -1: black
     if (type < 0) dist = -dist // black pieces move from 23 to 0
     const pos = (type < 0 ? 24 : -1)
-    
+
     // check if this piece can move to its dest position
     if (!canMove(true, true, type, positions[pos + dist])) {
       console.log("cant move this piece! " + type + ' ' + positions[pos + dist])
@@ -208,7 +208,7 @@ export default function Board() {
         setDeadB(deadB + 1)
         if (0 <= destPos && destPos <= 5) setOutsideB(outsideB + 1)
       }
-      newPositions[destPos]++ 
+      newPositions[destPos]++
     }
     const newCnt = newPositions[destPos]
 
@@ -216,7 +216,7 @@ export default function Board() {
     setTimeout(() => {
       setPositions(newPositions)
       // pieces have to be removed after animation, else they will disapper before animation starts
-      type < 0 ? setDeadB(deadB - 1) : setDeadW(deadW - 1) 
+      type < 0 ? setDeadB(deadB - 1) : setDeadW(deadW - 1)
     }, 300)
 
     // calculate movement animation directions
@@ -330,7 +330,7 @@ export default function Board() {
           </div>
         </div>
 
-        <img src="board.svg" draggable="false" />
+        <img src="board.svg" draggable="false" className="min-w-max min-h-max"/>
 
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex flex-col justify-between h-[75%] items-center">
           <h1 className="text-red-500">{deadW}</h1>
@@ -362,10 +362,10 @@ export default function Board() {
                 const pieceId = `${pos}-${index}`; // Generate unique ID
                 const isTop = index === Math.abs(cnt) - 1
                 return (
-                  <Piece 
-                    key={pieceId} 
-                    x={x} y={y} 
-                    color={color} 
+                  <Piece
+                    key={pieceId}
+                    x={x} y={y}
+                    color={color}
                     onPieceClick={() => handlePieceClick(pos, index, y)}
                     isPlayable={canMove(isTop, false, positions[pos], positions[pos + (cnt < 0 ? -g_dist : g_dist)])}
                     isRemovable={canBeRemoved(isTop, pos, g_dist)}
@@ -412,4 +412,3 @@ export default function Board() {
     </>
   )
 }
-
