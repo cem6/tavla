@@ -1,1 +1,1 @@
-fick javascript alle meine brueder hassen javascript
+host plays like its local and sends positions to client

@@ -8,7 +8,6 @@ import ErrorPage from './routes/errorpage.tsx'
 import Home from './routes/home.tsx'
 import Play from './routes/play.tsx'
 import PlayLokal from './routes/play-lokal.tsx'
-import Chat from './routes/chat.tsx'
 
 const router = createBrowserRouter([
   {
@@ -27,10 +26,6 @@ const router = createBrowserRouter([
       {
         path: "lokal",
         element: <PlayLokal />
-      },
-      {
-        path: "chat",
-        element: <Chat />
       },
     ],
   },

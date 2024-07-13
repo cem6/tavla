@@ -1,18 +1,11 @@
-import { useEffect, useState, useRef, Fragment, ChangeEvent } from "react"
-import Peer, { DataConnection } from 'peerjs'
+import { useEffect, useState } from "react"
+import { Fragment } from "react"
 import Piece from "./Piece.tsx"
 import Dice from "./Dice.tsx"
 import Popup from "./Popup.tsx";
 
-// --- new board with multiplayer --- //
-// insted of letting both players have their own states, only host has states
-// client will just send their movePiece data and let the host handle it
-// host will send states to client (either all or only positions and dice (maybe))
-//
-// im moment: host schickt positions an client
-
 // TODO: auto end turn when stuck, dice animation and styles
-//       bisschen schoner alles, stack pieces (> 5 oder 6)
+//       bisschen schoner alles, stack pieces (maybe), p2p online
 
 
 const initialPositions: number[] = [
@@ -30,7 +23,7 @@ const getDiceVal = () => {
   return Math.floor(Math.random() * 6) + 1
 }
 
-export default function Board() {
+export default function BoardLokal() {
   const [positions, setPositions] = useState(initialPositions)
 
   const [diceVal1, setDiceVal1] = useState(getDiceVal())
@@ -53,53 +46,6 @@ export default function Board() {
   // -=1 for every piece removed, once 0 => win
   const [toRemoveW, setToRemoveW] = useState(15)
   const [toRemoveB, setToRemoveB] = useState(15)
-
-
-
-  /* -------------------- online -------------------- */
-  const [myId, setMyId] = useState('')
-  const [friendId, setFriendId] = useState('')
-  const peerInstance = useRef<Peer | null>(null)
-  const connection = useRef<DataConnection | null>(null)
-  const [isHost, setIsHost] = useState(true)
-
-  useEffect(() => {
-    const peer = new Peer(String(Math.floor(Math.random() * 100)))
-    peer.on('open', (id: string) => { setMyId(id) })
-
-    peer.on('connection', (conn: DataConnection) => {
-      connection.current = conn
-      conn.on('data', (data: any) => { setPositions(data) })
-    })
-
-    peerInstance.current = peer
-  }, [])
-
-  const connectToFriend = (id: string) => {
-    if (peerInstance.current) {
-      const conn = peerInstance.current.connect(id)
-      connection.current = conn
-      setIsHost(false)
-
-      if (conn) {
-        conn.on('open', () => {
-          conn.on('data', (data: any) => { setPositions(data) })
-        })
-      }
-    }
-  }
-
-  const sharePos = () => {
-    if (connection.current && positions) {
-      connection.current.send(positions)
-    }
-  }
-
-  useEffect(() => {
-    if (isHost) sharePos()
-  }, [positions])    
-/* -------------------- online -------------------- */
-
 
 
   const sameColor = (a: number, b: number) => {
@@ -367,27 +313,6 @@ export default function Board() {
 
   return (
     <>
-      <h1>{connection.current && (isHost ? "host" : "client")}</h1>
-
-      {!connection.current ? (
-        <div className="mr-10">
-          <h1  className="text-3xl">my Id: {myId}</h1>
-
-          <div>
-            <input
-              className="text-black" 
-              type="text" 
-              placeholder="enter host id"
-              value={friendId}
-              onChange={(e: ChangeEvent<HTMLInputElement>) => setFriendId(e.target.value)}
-            />
-            <button onClick={() => connectToFriend(friendId)}>connect</button>
-          </div>
-        </div>
-      ) : null}
-
-      
-
       <div className="relative select-none">
 
         <div className="absolute -translate-y-12 flex justify-between w-full">
