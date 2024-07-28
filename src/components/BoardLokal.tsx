@@ -84,7 +84,7 @@ export default function BoardLokal() {
       // check if every pos from furthest (5) to pos excluding is empty
       if (dist >= pos + 1) {
         for (let i = 5; i > pos; i--) {
-          if (positions[i] != 0) return false
+          if (positions[i] < 0) return false
         }
         return true
       }
@@ -94,7 +94,7 @@ export default function BoardLokal() {
       // check if every pos from furthest (18) to pos excluding is empty
       if (dist >= 24 - pos) {
         for (let i = 18; i < pos; i++) {
-          if (positions[i] != 0) return false
+          if (positions[i] > 0) return false
         }
         return true;
       }

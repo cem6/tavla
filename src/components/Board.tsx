@@ -4,15 +4,12 @@ import Piece from "./Piece.tsx"
 import Dice from "./Dice.tsx"
 import Popup from "./Popup.tsx";
 
-// --- new board with multiplayer --- //
-// insted of letting both players have their own states, only host has states
-// client will just send their movePiece data and let the host handle it
-// host will send states to client (either all or only positions and dice (maybe))
-//
-// im moment: host schickt positions an client
+// --- new online idea:
+//         both players send their move data,
+//         moves are executed locally
 
 // TODO: auto end turn when stuck, dice animation and styles
-//       bisschen schoner alles, stack pieces (> 5 oder 6)
+//       bisschen schoner alles, stack pieces (a 5 oder 6)
 
 
 const initialPositions: number[] = [
@@ -64,12 +61,17 @@ export default function Board() {
   const [isHost, setIsHost] = useState(true)
 
   useEffect(() => {
-    const peer = new Peer(String(Math.floor(Math.random() * 100)))
+    const peer = new Peer(String(Math.floor(Math.random() * 10)), {
+      config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }
+    });
     peer.on('open', (id: string) => { setMyId(id) })
 
     peer.on('connection', (conn: DataConnection) => {
       connection.current = conn
-      conn.on('data', (data: any) => { setPositions(data) })
+      conn.on('data', (data: any) => {
+        console.log("received: ", data) 
+        handlePieceClick(data.pos, data.index, data.y, data.dist, true)
+      })
     })
 
     peerInstance.current = peer
@@ -83,21 +85,28 @@ export default function Board() {
 
       if (conn) {
         conn.on('open', () => {
-          conn.on('data', (data: any) => { setPositions(data) })
+          console.log("connected to friend " + id)
+        })
+
+        conn.on('data', (data: any) => {
+          console.log("received: ", data) 
+          handlePieceClick(data.pos, data.index, data.y, data.dist, true)
         })
       }
     }
   }
 
-  const sharePos = () => {
-    if (connection.current && positions) {
+  const shareMove = (pos: number, index: number, y: number, dist: number) => {
+    if (connection.current) {
+      connection.current.send({pos, index, y, dist})
+    }
+  } 
+  
+  const sharePositions = () => {
+    if (connection.current) {
       connection.current.send(positions)
     }
   }
-
-  useEffect(() => {
-    if (isHost) sharePos()
-  }, [positions])    
 /* -------------------- online -------------------- */
 
 
@@ -113,12 +122,41 @@ export default function Board() {
     return false
   }
 
-  const canMove = (isTop: boolean, isDead: boolean, start: number, dest: number) => {
+  // used in movePiece to test online 
+  const canMoveLogs = (isTop: boolean, isDead: boolean, start: number, dest: number, dist: number = g_dist) => {
+    return true
     if (!isDead && ((start < 0 && deadB > 0) ||
-                    (start > 0 && deadW > 0)))
+                    (start > 0 && deadW > 0))) {
+      console.log("color has a dead piece")
+      return false // cant move if color has dead piece                  
+    }
+
+    if (dist === 0) {
+      console.log("dist is 0")
+      return false      // cant move with dist 0
+    } 
+    if (!checkTurn(start)) {
+      console.log("can only move during own turn")
+      return false // can only move in own turn
+    }
+    if (!isTop) {
+      console.log("can only move top piece")
+      return false            // can only move top piece
+    }
+
+    if (Math.abs(dest) < 2) return true     // can move to empty or other color if its only 1
+    if (sameColor(start, dest)) return true // can move to same color
+
+    console.log("failed all checks")
+    return false
+  }
+
+  const canMove = (isTop: boolean, isDead: boolean, start: number, dest: number, dist: number = g_dist) => {
+    if (!isDead && ((start < 0 && deadB > 0) ||
+                    (start > 0 && deadW > 0))) 
       return false // cant move if color has dead piece
 
-    if (g_dist === 0) return false      // cant move with dist 0
+    if (dist === 0) return false      // cant move with dist 0
     if (!checkTurn(start)) return false // can only move in own turn
     if (!isTop) return false            // can only move top piece
 
@@ -129,7 +167,7 @@ export default function Board() {
   }
 
   const canBeRemoved = (isTop: boolean, pos: number, dist: number) => {
-    if (g_dist === 0) return false
+    if (dist === 0) return false
     if (!isTop) return false
     if (!checkTurn(positions[pos])) return false
 
@@ -138,7 +176,7 @@ export default function Board() {
       // check if every pos from furthest (5) to pos excluding is empty
       if (dist >= pos + 1) {
         for (let i = 5; i > pos; i--) {
-          if (positions[i] != 0) return false
+          if (positions[i] < 0) return false
         }
         return true
       }
@@ -148,7 +186,7 @@ export default function Board() {
       // check if every pos from furthest (18) to pos excluding is empty
       if (dist >= 24 - pos) {
         for (let i = 18; i < pos; i++) {
-          if (positions[i] != 0) return false
+          if (positions[i] > 0) return false
         }
         return true;
       }
@@ -158,20 +196,24 @@ export default function Board() {
   }
 
 
-  const handlePieceClick = (pos: number, index: number, y: number) => {
-    console.log("--------\npiece clicked: " + pos + " " + g_dist)
-    if (canBeRemoved((index === Math.abs(positions[pos]) - 1), pos, g_dist)) {
+  const handlePieceClick = (pos: number, index: number, y: number, dist: number = g_dist, received: boolean = false) => {
+    if (!received) {
+      shareMove(pos, index, y, dist)
+      console.log("piece clicked: ", {pos, index, y, dist})
+    }
+
+    if (canBeRemoved((index === Math.abs(positions[pos]) - 1), pos, dist)) {
       removePiece(pos)
       return [0, 0]
     }
-    return movePiece(pos, index, g_dist, y) // returns [dx, dy]
+    return movePiece(pos, index, dist, y) // returns [dx, dy]
   }
 
   const movePiece = (pos: number, index: number, dist: number, y: number) => {
     if (positions[pos] < 0) dist = -dist // black pieces move from 23 to 0
 
     // check if this piece is a top piece and can move to its dest position
-    if (!canMove((index === Math.abs(positions[pos]) - 1), false, positions[pos], positions[pos + dist])) {
+    if (!canMoveLogs((index === Math.abs(positions[pos]) - 1), false, positions[pos], positions[pos + dist])) {
       console.log("cant move this piece")
       return [0, 0]
     }
@@ -340,7 +382,7 @@ export default function Board() {
   }
 
   useEffect(() => {
-    console.log(positions)
+    // console.log(positions)
     if (diceUsed1 && diceUsed2) {
       if (diceVal1 == diceVal2 && !pasch) {
         // use dice twice
