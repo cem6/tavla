@@ -7,6 +7,13 @@ import Popup from "./Popup.tsx";
 // --- new online idea:
 //         both players send their move data,
 //         moves are executed locally
+//
+// ONLINE ANIMATIONS
+//  => have to store deltas as state (can be accessed from everywhere) 
+//     instead of only returning them to piece on click (can not be done when receiving moveData)
+//   => need to modify piece props directly 
+//    => need pieces to have unique ids
+//     => rewrite how pieces are stored and communicated with
 
 // TODO: auto end turn when stuck, dice animation and styles
 //       bisschen schoner alles, stack pieces (a 5 oder 6)
@@ -23,12 +30,19 @@ const posToX: number[] = [
   0, 60, 120, 180, 240, 300, 420, 480, 540, 600, 660, 720
 ]
 
+const initialMoveDeltas: number[][] = [
+  [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], 
+  [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], 
+  [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0]
+]
+
 const getDiceVal = () => {
   return Math.floor(Math.random() * 6) + 1
 }
 
 export default function Board() {
   const [positions, setPositions] = useState(initialPositions)
+  const [moveDeltas, setMoveDeltas] = useState(initialMoveDeltas) // ????????????????????????????????????????????????????????????????????????????????
 
   const [diceVal1, setDiceVal1] = useState(getDiceVal())
   const [diceVal2, setDiceVal2] = useState(getDiceVal())
@@ -53,7 +67,8 @@ export default function Board() {
 
 
 
-  /* -------------------- online -------------------- */
+  /* -------------------------------------------------------------------- */ 
+  /* ------------------------------ online ------------------------------ */
   const [myId, setMyId] = useState('')
   const [friendId, setFriendId] = useState('')
   const peerInstance = useRef<Peer | null>(null)
@@ -70,7 +85,7 @@ export default function Board() {
       connection.current = conn
       conn.on('data', (data: any) => {
         console.log("received: ", data) 
-        handlePieceClick(data.pos, data.index, data.y, data.dist, true)
+        handleReceivedData(data)
       })
     })
 
@@ -81,33 +96,34 @@ export default function Board() {
     if (peerInstance.current) {
       const conn = peerInstance.current.connect(id)
       connection.current = conn
-      setIsHost(false)
 
       if (conn) {
         conn.on('open', () => {
+          setIsHost(false)
           console.log("connected to friend " + id)
         })
 
         conn.on('data', (data: any) => {
           console.log("received: ", data) 
-          handlePieceClick(data.pos, data.index, data.y, data.dist, true)
+          handleReceivedData(data)
         })
       }
     }
   }
 
-  const shareMove = (pos: number, index: number, y: number, dist: number) => {
-    if (connection.current) {
-      connection.current.send({pos, index, y, dist})
-    }
-  } 
-  
-  const sharePositions = () => {
-    if (connection.current) {
-      connection.current.send(positions)
+  const handleReceivedData = (d: any) => {
+    // move data
+    if (d.type === 0) {
+
     }
   }
-/* -------------------- online -------------------- */
+
+  const shareMoveData = () => {
+    if (connection.current)
+      connection.current.send({type: 0, })
+  } 
+  /* ------------------------------ online ------------------------------ */
+  /* -------------------------------------------------------------------- */
 
 
 
@@ -125,8 +141,8 @@ export default function Board() {
   // used in movePiece to test online 
   const canMoveLogs = (isTop: boolean, isDead: boolean, start: number, dest: number, dist: number = g_dist) => {
     return true
-    if (!isDead && ((start < 0 && deadB > 0) ||
-                    (start > 0 && deadW > 0))) {
+
+    if (!isDead && ((start < 0 && deadB > 0) || (start > 0 && deadW > 0))) {
       console.log("color has a dead piece")
       return false // cant move if color has dead piece                  
     }
@@ -152,8 +168,7 @@ export default function Board() {
   }
 
   const canMove = (isTop: boolean, isDead: boolean, start: number, dest: number, dist: number = g_dist) => {
-    if (!isDead && ((start < 0 && deadB > 0) ||
-                    (start > 0 && deadW > 0))) 
+    if (!isDead && ((start < 0 && deadB > 0) || (start > 0 && deadW > 0))) 
       return false // cant move if color has dead piece
 
     if (dist === 0) return false      // cant move with dist 0
@@ -196,12 +211,7 @@ export default function Board() {
   }
 
 
-  const handlePieceClick = (pos: number, index: number, y: number, dist: number = g_dist, received: boolean = false) => {
-    if (!received) {
-      shareMove(pos, index, y, dist)
-      console.log("piece clicked: ", {pos, index, y, dist})
-    }
-
+  const handlePieceClick = (pos: number, index: number, y: number, dist: number = g_dist) => {
     if (canBeRemoved((index === Math.abs(positions[pos]) - 1), pos, dist)) {
       removePiece(pos)
       return [0, 0]
@@ -228,9 +238,9 @@ export default function Board() {
     useDice()
 
     const newPositions = [...positions];
-
     const prevCnt = positions[pos]
     const destPos = pos + dist
+
     // black
     if (prevCnt < 0) {
       newPositions[pos]++ // remove black piece from start
@@ -258,13 +268,15 @@ export default function Board() {
     // timeout before rerender (time for .3s animation)
     setTimeout(() => {
       setPositions(newPositions);
-    }, 300)
+    }, 300)    
 
     // calculate movement animation directions
     const dx = posToX[destPos] - posToX[pos]
     const newY = (destPos < 12 ? (Math.abs(newCnt) - 1) * 60 : 740 - (Math.abs(newCnt) - 1) * 60)
     const dy = newY - y
     return [dx, dy];
+
+    // setMoveDeltas[pieceid] = [dx, dy] // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   }
 
   const moveDeadPiece = (type: number, dist: number) => {
