@@ -4,6 +4,9 @@ import Piece from "./Piece.tsx"
 import Dice from "./Dice.tsx"
 import Popup from "./Popup.tsx";
 
+
+// host always has white pieces
+
 // --- new online idea:
 //         both players send their move data,
 //         moves are executed locally
@@ -15,7 +18,8 @@ import Popup from "./Popup.tsx";
 //    => need pieces to have unique ids
 //     => rewrite how pieces are stored and communicated with
 
-// TODO: auto end turn when stuck, dice animation and styles
+// TODO: applyMove fuer moveDead und remove, state sync
+//       auto end turn when stuck, dice animation and styles
 //       bisschen schoner alles, stack pieces (a 5 oder 6)
 
 
@@ -30,19 +34,12 @@ const posToX: number[] = [
   0, 60, 120, 180, 240, 300, 420, 480, 540, 600, 660, 720
 ]
 
-const initialMoveDeltas: number[][] = [
-  [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], 
-  [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], 
-  [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0]
-]
-
 const getDiceVal = () => {
   return Math.floor(Math.random() * 6) + 1
 }
 
 export default function Board() {
   const [positions, setPositions] = useState(initialPositions)
-  const [moveDeltas, setMoveDeltas] = useState(initialMoveDeltas) // ????????????????????????????????????????????????????????????????????????????????
 
   const [diceVal1, setDiceVal1] = useState(getDiceVal())
   const [diceVal2, setDiceVal2] = useState(getDiceVal())
@@ -76,7 +73,7 @@ export default function Board() {
   const [isHost, setIsHost] = useState(true)
 
   useEffect(() => {
-    const peer = new Peer(String(Math.floor(Math.random() * 10)), {
+    const peer = new Peer(String(Math.floor(Math.random() * 100)), {
       config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }
     });
     peer.on('open', (id: string) => { setMyId(id) })
@@ -111,17 +108,49 @@ export default function Board() {
     }
   }
 
-  const handleReceivedData = (d: any) => {
-    // move data
-    if (d.type === 0) {
+  // is sent after every move to update positions
+  const sendMoveData = (newPositions: number[]) => {
+    if (connection.current)
+      connection.current.send({type: 1, newPositions,})
+  }
 
+  // is sent at end of turn to update states, change turn, reset dice, ...
+  const sendGameData = (turnW: boolean, val1: number, val2: number) => {
+    if (connection.current) {
+      // ?????????????????????????????????
+      const dead = isHost ? deadW : deadB
+      const outside = isHost ? outsideW : outsideB
+      const toRemove = isHost ? toRemoveW : toRemoveB
+      connection.current.send({type: 2, turnW, val1, val2, dead, outside, toRemove})
+      console.log("sent game data ", dead, outside, toRemove)
     }
   }
 
-  const shareMoveData = () => {
-    if (connection.current)
-      connection.current.send({type: 0, })
-  } 
+  const handleReceivedData = (data: any) => {
+    if (data.type === 1) {
+      applyMove(data.newPositions)
+    }
+    else if (data.type === 2) {
+      setTurnW(!data.turnW)
+      setDiceVal1(data.val1)
+      setDiceVal2(data.val2)
+
+      // this makes no fucking sense
+      console.log("received game data ", data.dead, data.outside, data.toRemove)
+      if (isHost) {
+        setDeadB(data.dead)
+        setOutsideB(data.outside)
+        setToRemoveB(data.toRemove)
+        console.log("modified game data ", deadB, outsideB, toRemoveB)
+      }
+      else {
+        setDeadW(data.dead)
+        setOutsideW(data.outside)
+        setToRemoveW(data.toRemove)
+        console.log("modified game data ", deadW, outsideW, toRemoveW)
+      }
+    }
+  }
   /* ------------------------------ online ------------------------------ */
   /* -------------------------------------------------------------------- */
 
@@ -132,39 +161,7 @@ export default function Board() {
   }
 
   const checkTurn = (type: number) => {
-    // return ((type < 0 && !turnW) || (type > 0 && turnW))
-    if (type > 0 && turnW) return true
-    if (type < 0 && !turnW) return true
-    return false
-  }
-
-  // used in movePiece to test online 
-  const canMoveLogs = (isTop: boolean, isDead: boolean, start: number, dest: number, dist: number = g_dist) => {
-    return true
-
-    if (!isDead && ((start < 0 && deadB > 0) || (start > 0 && deadW > 0))) {
-      console.log("color has a dead piece")
-      return false // cant move if color has dead piece                  
-    }
-
-    if (dist === 0) {
-      console.log("dist is 0")
-      return false      // cant move with dist 0
-    } 
-    if (!checkTurn(start)) {
-      console.log("can only move during own turn")
-      return false // can only move in own turn
-    }
-    if (!isTop) {
-      console.log("can only move top piece")
-      return false            // can only move top piece
-    }
-
-    if (Math.abs(dest) < 2) return true     // can move to empty or other color if its only 1
-    if (sameColor(start, dest)) return true // can move to same color
-
-    console.log("failed all checks")
-    return false
+    return (type > 0 && turnW && isHost) || (type < 0 && !turnW && !isHost)
   }
 
   const canMove = (isTop: boolean, isDead: boolean, start: number, dest: number, dist: number = g_dist) => {
@@ -223,7 +220,7 @@ export default function Board() {
     if (positions[pos] < 0) dist = -dist // black pieces move from 23 to 0
 
     // check if this piece is a top piece and can move to its dest position
-    if (!canMoveLogs((index === Math.abs(positions[pos]) - 1), false, positions[pos], positions[pos + dist])) {
+    if (!canMove((index === Math.abs(positions[pos]) - 1), false, positions[pos], positions[pos + dist])) {
       console.log("cant move this piece")
       return [0, 0]
     }
@@ -265,18 +262,14 @@ export default function Board() {
     }
     const newCnt = newPositions[destPos]
 
-    // timeout before rerender (time for .3s animation)
-    setTimeout(() => {
-      setPositions(newPositions);
-    }, 300)    
+    sendMoveData(newPositions)
+    applyMove(newPositions)
 
     // calculate movement animation directions
     const dx = posToX[destPos] - posToX[pos]
     const newY = (destPos < 12 ? (Math.abs(newCnt) - 1) * 60 : 740 - (Math.abs(newCnt) - 1) * 60)
     const dy = newY - y
     return [dx, dy];
-
-    // setMoveDeltas[pieceid] = [dx, dy] // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   }
 
   const moveDeadPiece = (type: number, dist: number) => {
@@ -349,7 +342,11 @@ export default function Board() {
     setPositions(newPositions)
   }
 
-
+  const applyMove = (newPositions: number[]) => {
+      setTimeout(() => {
+        setPositions(newPositions)
+      }, 300)
+  }
 
   const handleDiceClick = (id: number) => {
     if (id === 1) {
@@ -381,20 +378,22 @@ export default function Board() {
     }
   }
 
-  const resetDice = () => {
-    // change turn and reset dice
+  const endTurn = () => {
     setTurnW(!turnW)
-    setDiceVal1(getDiceVal())
-    setDiceVal2(getDiceVal())
+    const v1 = getDiceVal()
+    const v2 = getDiceVal()
+    setDiceVal1(v1)
+    setDiceVal2(v2)
     setDiceSelected1(false)
     setDiceSelected2(false)
     setDiceUsed1(false)
     setDiceUsed2(false)
     setPasch(false)
+
+    sendGameData(turnW, v1, v2)
   }
 
   useEffect(() => {
-    // console.log(positions)
     if (diceUsed1 && diceUsed2) {
       if (diceVal1 == diceVal2 && !pasch) {
         // use dice twice
@@ -403,10 +402,10 @@ export default function Board() {
         setDiceUsed2(false)
       }
       else {
-        resetDice()
+        endTurn()
       }
     }
-  }, [diceUsed1, diceUsed2])
+  }, [diceUsed1, diceUsed2, turnW])
 
   // triggers on every rerender, propably not neccessary
   useEffect(() => {
@@ -474,7 +473,7 @@ export default function Board() {
           <h1 className="text-red-500">{deadB}</h1>
         </div>
 
-        <div onClick={resetDice} className="absolute top-1/2 left-1/2 transform -translate-x-40 -translate-y-1/2 p-2 bg-gray-300 text-black border-2 border-black text-2xl">
+        <div onClick={endTurn} className="absolute top-1/2 left-1/2 transform -translate-x-40 -translate-y-1/2 p-2 bg-gray-300 text-black border-2 border-black text-2xl">
           <h2>DONE</h2>
         </div>
 

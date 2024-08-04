@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { Fragment } from "react"
 import Piece from "./Piece.tsx"
+import PieceAnimation from "./PieceAnimation.tsx"
 import Dice from "./Dice.tsx"
 import Popup from "./Popup.tsx";
 
@@ -46,6 +47,11 @@ export default function BoardLokal() {
   // -=1 for every piece removed, once 0 => win
   const [toRemoveW, setToRemoveW] = useState(15)
   const [toRemoveB, setToRemoveB] = useState(15)
+
+
+  const [animatedPiece, setAnimatedPiece] = useState<number[] | null>()
+
+
 
 
   const sameColor = (a: number, b: number) => {
@@ -159,16 +165,20 @@ export default function BoardLokal() {
     }
     const newCnt = newPositions[destPos]
 
-    // timeout before rerender (time for .3s animation)
-    setTimeout(() => {
-      setPositions(newPositions);
-    }, 300)
-
     // calculate movement animation directions
     const dx = posToX[destPos] - posToX[pos]
     const newY = (destPos < 12 ? (Math.abs(newCnt) - 1) * 60 : 740 - (Math.abs(newCnt) - 1) * 60)
     const dy = newY - y
-    return [dx, dy];
+
+    // !!! need positions where moved piece is missing and not added anywhere else
+    setAnimatedPiece([posToX[pos], y, dx, dy])
+    // timeout before rerender (time for .3s animation)
+    setTimeout(() => {
+      setPositions(newPositions);
+      setAnimatedPiece(null)
+    }, 300)
+
+    return [0, 0];
   }
 
   const moveDeadPiece = (type: number, dist: number) => {
@@ -403,6 +413,16 @@ export default function BoardLokal() {
               >
               </Piece>
             ))
+        ) : null}
+
+        {animatedPiece ? (
+          <PieceAnimation
+            startX={animatedPiece[0]}
+            startY={animatedPiece[1]}
+            dX={animatedPiece[2]}
+            dY={animatedPiece[3]}
+            color="blue"
+          />
         ) : null}
 
       </div>

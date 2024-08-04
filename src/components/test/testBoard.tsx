@@ -102,10 +102,8 @@ export default function Test() {
   return (
     <>
       <h2 className="p-6 -mt-2 mb-4 text-3xl rounded-xl bg-fuchsia-500">online animation test</h2>
-      <h2 className="text-6xl">{positions}</h2>
-      <h2>{dir}</h2>
 
-      <div className="p-8 mt-6 bg-red-400 rounded-3xl">
+      <div className="p-8 mt-6 mb-6 bg-red-400 rounded-t-3xl">
         <h1>{isHost ? "host" : "client"}</h1>
         <h1 className="p-2 text-2xl bg-red-500">my id: {myId}</h1>
 
@@ -120,6 +118,9 @@ export default function Test() {
           <button onClick={() => connectToFriend(friendId)}>connect</button>
         </div>
       </div>
+
+      <h2 className="text-6xl">{positions}</h2>
+      <h2>{dir}</h2>
 
       {positions.map((cnt, pos) => {
         const x = posToX[pos];

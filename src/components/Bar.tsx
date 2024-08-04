@@ -3,9 +3,9 @@ import { Link } from "react-router-dom";
 export default function Bar() {
   const links = [
     {name: "Home", link: "/"},
-    {name: "Test", link: "test"},
     {name: "Play online", link: "play"},
     {name: "Play lokal", link: "lokal"},
+    {name: "Test", link: "test"},
   ]
 
   return (
