@@ -1,14 +1,12 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import './index.css'
-
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
+
+import './index.css'
 import Root from './routes/root.tsx'
 import ErrorPage from './routes/errorpage.tsx'
 import Home from './routes/home.tsx'
-import Test from './routes/test.tsx'
 import Play from './routes/play.tsx'
-import PlayLokal from './routes/play-lokal.tsx'
 
 const router = createBrowserRouter([
   {
@@ -23,14 +21,6 @@ const router = createBrowserRouter([
       {
         path: "play",
         element: <Play />
-      },
-      {
-        path: "lokal",
-        element: <PlayLokal />
-      },
-      {
-        path: "test",
-        element: <Test />
       },
     ],
   },

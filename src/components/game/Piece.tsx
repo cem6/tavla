@@ -1,30 +1,23 @@
 import { useState } from "react";
 
 interface Props {
-  x: number
-  y: number
+  xPos: number
+  yPos: number
   color: string
   isPlayable: boolean
   isRemovable: boolean
-  onPieceClick: () => number[]
   hasDead?: number
+  onPieceClick: () => void
 }
 
-export default function Piece({x, y, color, isPlayable, isRemovable, onPieceClick, hasDead }: Props) {
-  const [positionX, setPositionX] = useState(x);
-  const [positionY, setPositionY] = useState(y);
-
-  const handleClick = () => {
-    const [dX, dY] = onPieceClick();
-    setPositionX(positionX + dX);
-    setPositionY(positionY + dY);
-  };
+export default function Piece({xPos, yPos, color, isPlayable, isRemovable, hasDead, onPieceClick}: Props) {
+  const [x, setX] = useState(xPos) // ????? dont need ??
+  const [y, setY] = useState(yPos)
 
   const styles: React.CSSProperties = {
     position: "absolute",
-    left: `${positionX}px`,
-    top: `${positionY}px`,
-    transition: 'left 0.3s, top 0.3s',
+    left: `${x}px`,
+    top: `${y}px`,
   };
 
   return (
@@ -33,13 +26,12 @@ export default function Piece({x, y, color, isPlayable, isRemovable, onPieceClic
       height="60"
       viewBox="0 0 60 60"
       style={styles}
-      className=""
-      onClick={handleClick}
+      onClick={onPieceClick}
     >
 
       <circle 
         cx="30" cy="30" 
-        r={isPlayable ? "29" : "30"} 
+        r={isPlayable || isRemovable ? "29" : "30"} 
         fill={color} 
         strokeWidth="2"
         stroke={isPlayable ? "deepskyblue" : (isRemovable ? "fuchsia" : "none")} 
