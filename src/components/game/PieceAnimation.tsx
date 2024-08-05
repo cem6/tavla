@@ -11,6 +11,8 @@ interface Props {
 }
 
 export default function PieceAnimation({ startX, startY, dX, dY, color }: Props) {
+  if (dX === 0 && dY === 0) return null
+  
   const finalX = startX + dX;
   const finalY = startY + dY;
 
@@ -27,7 +29,6 @@ export default function PieceAnimation({ startX, startY, dX, dY, color }: Props)
       height="60"
       viewBox="0 0 60 60"
       style={styles}
-      className=""
     >
       <circle cx="30" cy="30" r="30" fill={color} />
       <style>

@@ -5,22 +5,16 @@ import PieceAnimation from "./PieceAnimation.tsx"
 import Dice from "./Dice.tsx"
 
 
-// better way to sync states:
-// everyone has ownState and friendState, 
-//    only calculate ownState, receive friendState from friend on useEffect
-//    win/lose can be its own state
+// BUG wenn moveDeadPiece eats dead piece glaube ich
 
-// TODO: sync dices and turn
-// maybe: instead of turnW (black/white) turnOwn(own turn/friends turn)
-//        player with turnOwn sends dice data (or syncs with useEffect during entire turn)
-//        when not own turn, dont create own dice values
-// -> Update hasTurn(): instead of (type && turnW) (type && isHost && ownTurn)
-
+// TODO: show friend dicevals and diceused if its not own turn
 // TODOlater: auto end turn when stuck
 
 const initialPositions: number[] = [
   2, 0, 0, 0, 0, -5, 0, -3, 0, 0, 0, 5,
   -5, 0, 0, 0, 3, 0, 5, 0, 0, 0, 0, -2
+  // -3, -3, -3, -3, -3, 0, 0, 0, 0, 0, 0, 0,
+  // 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3
 ]
 const posToX: number[] = [
   720, 660, 600, 540, 480, 420, 300, 240, 180, 120, 60, 0,
@@ -35,10 +29,9 @@ const getDiceVal = () => {
 export default function Board() {
   const [positions, setPositions] = useState(initialPositions)
   const [globalDist, setGlobalDist] = useState(0)
-  const [turnW, setTurnW] = useState(true)
   const [movingPiece, setMovingPiece] = useState<number[] | null>()
-  const [deadW, setDeadW] = useState(0)
-  const [deadB, setDeadB] = useState(0)
+  const [myTurn, setMyTurn] = useState(false)
+  const [white, setWhite] = useState<boolean | null>(null) 
 
   const [diceVal1, setDiceVal1] = useState(getDiceVal())
   const [diceVal2, setDiceVal2] = useState(getDiceVal())
@@ -48,6 +41,8 @@ export default function Board() {
   const [diceUsed2, setDiceUsed2] = useState(false)
   const [pasch, setPasch] = useState(false)
 
+  const [deadW, setDeadW] = useState(0)
+  const [deadB, setDeadB] = useState(0)
   const [outsideW, setOutsideW] = useState(10)
   const [outsideB, setOutsideB] = useState(10)
   const [toRemoveW, setToRemoveW] = useState(15)
@@ -57,7 +52,6 @@ export default function Board() {
   const [friendId, setFriendId] = useState('')
   const peerInstance = useRef<Peer | null>(null)
   const connection = useRef<DataConnection | null>(null)
-  const [isHost, setIsHost] = useState(0) // -1: client, 1: host
 
 
 
@@ -78,7 +72,8 @@ export default function Board() {
 
     peer.on('connection', (conn: DataConnection) => {
       console.log("received connection from friend " + conn.peer);
-      setIsHost(1) // is host
+      setWhite(true) // is host
+      setMyTurn(true)
       connection.current = conn
       conn.on('data', (data: any) => {
         console.log("received: ", data) 
@@ -98,7 +93,7 @@ export default function Board() {
       if (conn) {
         conn.on('open', () => {
           console.log("connected to friend " + id)
-          setIsHost(-1) // is client
+          setWhite(false) // is client
         })
 
         conn.on('data', (data: any) => {
@@ -111,9 +106,40 @@ export default function Board() {
 
 
   const sendMoveData = (waitPositions: number[], newPositions: number[], movingPiece: number[]) => {
-    if (connection.current)
+    if (connection.current) {
+      console.log("sent move data")
       connection.current.send({id: 0, waitPositions, newPositions, movingPiece})
+    }
   }
+
+  const sendEndTurn = () => {
+    if (connection.current) {
+      console.log("sent end turn")
+      connection.current.send({id: 1})
+    }
+  }
+
+  // ..........
+  const sendState = (stateId: number) => {
+    if (connection.current) {
+      let state = null
+      switch (stateId) {
+        case 0: state = deadW; break
+        case 1: state = deadB; break
+        case 2: state = outsideW; break
+        case 3: state = outsideB; break
+        case 4: state = toRemoveW; break
+        case 5: state = toRemoveB; break
+      }
+      connection.current.send({id: 2, stateId, state})
+    }
+  }
+  useEffect(() => { sendState(0) }, [deadW])
+  useEffect(() => { sendState(1) }, [deadB])
+  useEffect(() => { sendState(2) }, [outsideW])
+  useEffect(() => { sendState(3) }, [outsideB])
+  useEffect(() => { sendState(4) }, [toRemoveW])
+  useEffect(() => { sendState(5) }, [toRemoveB])
 
   const handleReceivedData = (data: any) => {
     if (data.id === 0) {
@@ -125,8 +151,17 @@ export default function Board() {
       }, 300)
     }
     else if (data.id === 1) {
+      setMyTurn(true)
     }
     else if (data.id === 2) {
+      switch (data.stateId) {
+        case 0: setDeadW(data.state); break
+        case 1: setDeadW(data.state); break
+        case 2: setOutsideW(data.state); break
+        case 3: setOutsideB(data.state); break
+        case 4: setToRemoveW(data.state); break
+        case 5: setToRemoveB(data.state); break
+      }
     }
   }
 
@@ -150,7 +185,7 @@ export default function Board() {
 
 
   const checkHasTurn = (type: number) => {
-    return ((type < 0 && !turnW) || (type > 0 && turnW))
+    return (myTurn && ((type < 0 && !white) || (type > 0 && white)))
   }
 
 
@@ -172,10 +207,11 @@ export default function Board() {
   
     return false
   }
+
   const canMoveLOGS = (startCnt: number, destCnt: number, isTop: boolean, isDead: boolean = false) => {
     if (!isDead && ((startCnt < 0 && deadB > 0) || (startCnt > 0 && deadW > 0))) {
         console.log('Cannot move: color has dead piece.');
-        return false; // cant move if color has dead piece
+        return false;
     }
     if (globalDist == 0) {
         console.log('Cannot move: globalDist is 0.');
@@ -253,9 +289,7 @@ export default function Board() {
 
   /* ---------------------------------------------------------------------------------------------------- */
   /* ---------------------------------------- piece interactions ---------------------------------------- */
-  const handlePieceClick = (pos: number, index: number, y: number, dist: number = globalDist, received: boolean = false) => {
-    // if (!received) sendPieceClick(pos, index, y, dist)
-    
+  const handlePieceClick = (pos: number, index: number, y: number, dist: number = globalDist) => {
     if (positions[pos] < 0) dist = -dist // black moves in opposite direction
     
     if (canBeRemoved(pos, checkIsTop(pos, index))) removePiece(pos)
@@ -272,7 +306,7 @@ export default function Board() {
 
 
   // dont touch this!
-  const getMoveDelta = (startPos: number, destPos: number, destCnt: number, y: number ) => {
+  const getMoveDirections = (startPos: number, destPos: number, destCnt: number, y: number ) => {
     const dx = posToX[destPos] - posToX[startPos]
     const newY = (destPos < 12 ? (Math.abs(destCnt) - 1) * 60 : 740 - (Math.abs(destCnt) - 1) * 60)
     const dy = newY - y
@@ -284,7 +318,7 @@ export default function Board() {
     const waitPositions = [...positions] // applied during animation (only start removed)
     const newPositions = [...positions] // applied after animation (with dest added)
     const ate = !checkSameColor(positions[pos], positions[pos + dist]) ? true : false // did this piece eat another piece
-    const white = positions[pos] < 0 ? false : true // color of piece that is moved
+    const white = positions[pos] < 0 ? false : true // color of piece that is moved // overwrites global white
     const destPos = pos + dist
 
     // modify positions array
@@ -312,7 +346,7 @@ export default function Board() {
     }
 
     // animation with PieceAnimation component
-    const [dx, dy] = getMoveDelta(pos, destPos, newPositions[destPos], y)
+    const [dx, dy] = getMoveDirections(pos, destPos, newPositions[destPos], y)
     const movingPiece = [posToX[pos], y, dx, dy]
     setMovingPiece(movingPiece)
     setPositions(waitPositions) // start removed, dest not added
@@ -358,8 +392,11 @@ export default function Board() {
 
     // animation with PieceAnimation component
     const y = type < 0 ? 640 : 100
-    const [dx, dy] = getMoveDelta(24, destPos, newPositions[destPos], y) // posToX[24] == 360 (x of every dead Piece)
-    setMovingPiece([posToX[24], y, dx, dy])
+    const [dx, dy] = getMoveDirections(24, destPos, newPositions[destPos], y) // posToX[24] == 360 (x of every dead Piece)
+    const movingPiece = [posToX[24], y, dx, dy]
+    setMovingPiece(movingPiece)
+
+    sendMoveData(newPositions, newPositions, movingPiece)
 
     // end animation, set final positions with dest added
     setTimeout(() => {
@@ -381,6 +418,7 @@ export default function Board() {
       newPositions[pos]--
       setToRemoveW(toRemoveW - 1)
     }
+    sendMoveData(newPositions, newPositions, [0, 0, 0, 0])
     setPositions(newPositions)
     setGlobalDist(0)
     useSelectedDice()
@@ -406,7 +444,6 @@ export default function Board() {
         setDiceSelected2(false)
         setDiceSelected1(true)
       }
-      // sound oder animation ?
     }
     else if (id === 2) {
       if(!diceUsed2) {
@@ -414,7 +451,6 @@ export default function Board() {
         setDiceSelected1(false)
         setDiceSelected2(true)
       }
-      // sound oder animation ?
     }
   }
 
@@ -431,9 +467,8 @@ export default function Board() {
   }
   
 
-  // change turn and reset dice
   const endTurn = () => {
-    setTurnW(!turnW)
+    setMyTurn(false)
     setDiceVal1(getDiceVal())
     setDiceVal2(getDiceVal())
     setDiceSelected1(false)
@@ -441,13 +476,13 @@ export default function Board() {
     setDiceUsed1(false)
     setDiceUsed2(false)
     setPasch(false)
+    sendEndTurn()
   }
-
 
   // check if both dice are used
   useEffect(() => {
     // console.log(positions)
-    if (diceUsed1 && diceUsed2) {
+    if (myTurn && diceUsed1 && diceUsed2) {
       if (diceVal1 == diceVal2 && !pasch) {
         // use dice twice
         setPasch(true)
@@ -462,6 +497,7 @@ export default function Board() {
   // select dice if none is selected, set global dist
   useEffect(() => {
     if (!diceSelected1 && !diceSelected2) setDiceSelected1(true)
+
     if (diceSelected1) setGlobalDist(diceVal1)
     else if (diceSelected2) setGlobalDist(diceVal2)
   })
@@ -482,8 +518,8 @@ export default function Board() {
       <div className="z-10 select-none">
         <div className="absolute -translate-y-[450px] flex flex-row justify-between w-[780px]">
           <div>
-            <h2>{isHost}</h2>
-            <h2>{turnW ? "white" : "black"} {globalDist}</h2>
+            <h2>my color: {white ? "white" : "black"}</h2>
+            <h2>{myTurn ? "my" : "not my"} turn, {globalDist}</h2>
           </div>
           <div>
             <h2>outsideB: {outsideB}</h2>
@@ -517,7 +553,7 @@ export default function Board() {
 
 
 
-      <div className="z-0 relative select-none transform" style={{ transform: isHost === -1 ? 'rotateX(-0.5turn)' : 'none' }}>
+      <div className="z-0 relative select-none transform" style={{ transform: !white ? 'rotateX(-0.5turn)' : 'none' }}>
         <img src="board.svg" draggable="false" className="min-w-max min-h-max"/>
 
         {positions.map((cnt, pos) => {
@@ -601,7 +637,7 @@ export default function Board() {
         </div>
       ) : null}
 
-      {isHost === 0 ? (
+      {white === null ? (
         <div className="z-20 absolute p-24 bg-pink-500">
           <h1>my id: {myId}</h1>
           <div>
