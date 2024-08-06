@@ -1,5 +1,3 @@
-import { useState } from "react";
-
 interface Props {
   xPos: number
   yPos: number
@@ -11,13 +9,10 @@ interface Props {
 }
 
 export default function Piece({xPos, yPos, color, isPlayable, isRemovable, hasDead, onPieceClick}: Props) {
-  const [x, setX] = useState(xPos) // ????? dont need ??
-  const [y, setY] = useState(yPos)
-
   const styles: React.CSSProperties = {
     position: "absolute",
-    left: `${x}px`,
-    top: `${y}px`,
+    left: `${xPos}px`,
+    top: `${yPos}px`,
   };
 
   return (

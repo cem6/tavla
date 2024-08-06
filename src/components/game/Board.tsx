@@ -5,10 +5,11 @@ import PieceAnimation from "./PieceAnimation.tsx"
 import Dice from "./Dice.tsx"
 
 
-// BUG wenn moveDeadPiece eats dead piece glaube ich
+// BUG wenn moveDeadPiece eats dead piece glaube ich: +1 dead auf beiden seiten
 
 // TODO: show friend dicevals and diceused if its not own turn
-// TODOlater: auto end turn when stuck
+//       fix dice position not sticking to board center, fix deadCnt rotateX
+// TODOlater: resize svg to display w, auto end turn when stuck, dice icons oder so
 
 const initialPositions: number[] = [
   2, 0, 0, 0, 0, -5, 0, -3, 0, 0, 0, 5,
@@ -208,40 +209,40 @@ export default function Board() {
     return false
   }
 
-  const canMoveLOGS = (startCnt: number, destCnt: number, isTop: boolean, isDead: boolean = false) => {
-    if (!isDead && ((startCnt < 0 && deadB > 0) || (startCnt > 0 && deadW > 0))) {
-        console.log('Cannot move: color has dead piece.');
-        return false;
-    }
-    if (globalDist == 0) {
-        console.log('Cannot move: globalDist is 0.');
-        return false;
-    }
-    if (movingPiece) {
-        console.log('Cannot move: a piece is already being moved.');
-        return false;
-    }
-    if (!checkHasTurn(startCnt)) {
-        console.log('Cannot move: it is not the player\'s turn.');
-        return false;
-    }
-    if (!isTop) {
-        console.log('Cannot move: isTop is false.');
-        return false;
-    }
+//   const canMoveLOGS = (startCnt: number, destCnt: number, isTop: boolean, isDead: boolean = false) => {
+//     if (!isDead && ((startCnt < 0 && deadB > 0) || (startCnt > 0 && deadW > 0))) {
+//         console.log('Cannot move: color has dead piece.');
+//         return false;
+//     }
+//     if (globalDist == 0) {
+//         console.log('Cannot move: globalDist is 0.');
+//         return false;
+//     }
+//     if (movingPiece) {
+//         console.log('Cannot move: a piece is already being moved.');
+//         return false;
+//     }
+//     if (!checkHasTurn(startCnt)) {
+//         console.log('Cannot move: it is not the player\'s turn.');
+//         return false;
+//     }
+//     if (!isTop) {
+//         console.log('Cannot move: isTop is false.');
+//         return false;
+//     }
 
-    if (Math.abs(destCnt) < 2) {
-        console.log('Move allowed: destination count is less than 2.');
-        return true;
-    }
-    if (checkSameColor(startCnt, destCnt)) {
-        console.log('Move allowed: start and destination counts have the same color.');
-        return true;
-    }
+//     if (Math.abs(destCnt) < 2) {
+//         console.log('Move allowed: destination count is less than 2.');
+//         return true;
+//     }
+//     if (checkSameColor(startCnt, destCnt)) {
+//         console.log('Move allowed: start and destination counts have the same color.');
+//         return true;
+//     }
   
-    console.log('Move not allowed: no conditions met.');
-    return false;
-}
+//     console.log('Move not allowed: no conditions met.');
+//     return false;
+// }
 
 
 
@@ -494,10 +495,9 @@ export default function Board() {
   }, [diceUsed1, diceUsed2])
 
 
-  // select dice if none is selected, set global dist
+  // select dice1 if none is selected, set global dist to selected dice
   useEffect(() => {
-    if (!diceSelected1 && !diceSelected2) setDiceSelected1(true)
-
+    if (myTurn && !diceSelected1 && !diceSelected2) setDiceSelected1(true)
     if (diceSelected1) setGlobalDist(diceVal1)
     else if (diceSelected2) setGlobalDist(diceVal2)
   })
@@ -516,7 +516,7 @@ export default function Board() {
   return (
     <>
       <div className="z-10 select-none">
-        <div className="absolute -translate-y-[450px] flex flex-row justify-between w-[780px]">
+        <div className="absolute -translate-y-[450px] flex flex-row justify-between w-[780px] text-base-content">
           <div>
             <h2>my color: {white ? "white" : "black"}</h2>
             <h2>{myTurn ? "my" : "not my"} turn, {globalDist}</h2>
@@ -625,30 +625,36 @@ export default function Board() {
 
 
       {toRemoveW === 0 ? (
-        <div className="z-20 absolute p-20 bg-blue-500">
-          <h2>white won</h2>
-          <a href="/">home</a>
-        </div>
+          <div className="z-10 absolute modal-box p-20 max-w-sm bg-secondary">
+            <h1 className="text-3xl font-bold text-center text-secondary-content">white won</h1>
+            <div className="modal-action justify-center">
+              <button className="btn btn-lg"><a href="/">HOME</a></button>
+            </div>
+          </div>
       ) : null}
       {toRemoveB === 0 ? (
-        <div className="z-20 absolute p-20 bg-blue-500">
-          <h2>black won</h2>
-          <a href="/">home</a>
-        </div>
+          <div className="z-10 absolute modal-box p-20 max-w-sm bg-secondary">
+            <h1 className="text-3xl font-bold text-center text-secondary-content">black won</h1>
+            <div className="modal-action justify-center">
+              <button className="btn btn-lg"><a href="/">HOME</a></button>
+            </div>
+          </div>
       ) : null}
 
       {white === null ? (
-        <div className="z-20 absolute p-24 bg-pink-500">
-          <h1>my id: {myId}</h1>
-          <div>
-          <input
-              className="text-black" 
-              type="text" 
-              placeholder="enter host id"
+        <div className="z-10 absolute modal-box max-w-sm bg-primary">
+          <h1 className="text-lg font-bold text-primary-content">My ID: {myId}</h1>
+          <div className="py-4">
+            <input
+              className="input input-bordered w-full text-base-content"
+              type="text"
+              placeholder="Enter host ID"
               value={friendId}
               onChange={(e: ChangeEvent<HTMLInputElement>) => setFriendId(e.target.value)}
             />
-            <button onClick={() => connectToFriend(friendId)}>connect</button>
+          </div>
+          <div className="modal-action justify-center">
+            <button className="btn" onClick={() => connectToFriend(friendId)}>Connect</button>
           </div>
         </div>
       ) : null}
