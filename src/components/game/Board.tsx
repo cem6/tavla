@@ -5,11 +5,9 @@ import PieceAnimation from "./PieceAnimation.tsx"
 import Dice from "./Dice.tsx"
 
 
-// BUG wenn moveDeadPiece eats dead piece glaube ich: +1 dead auf beiden seiten
 
-// TODO: show friend dicevals and diceused if its not own turn
-//       fix dice position not sticking to board center, fix deadCnt rotateX
-// TODOlater: resize svg to display w, auto end turn when stuck, dice icons oder so
+// TODO: fix deadCnt rotateX, scale to screensize
+// TODOlater: auto end turn when stuck, dice icons oder so
 
 const initialPositions: number[] = [
   2, 0, 0, 0, 0, -5, 0, -3, 0, 0, 0, 5,
@@ -34,8 +32,8 @@ export default function Board() {
   const [myTurn, setMyTurn] = useState(false)
   const [white, setWhite] = useState<boolean | null>(null) 
 
-  const [diceVal1, setDiceVal1] = useState(getDiceVal())
-  const [diceVal2, setDiceVal2] = useState(getDiceVal())
+  const [diceVal1, setDiceVal1] = useState(0)
+  const [diceVal2, setDiceVal2] = useState(0)
   const [diceSelected1, setDiceSelected1] = useState(false)
   const [diceSelected2, setDiceSelected2] = useState(false)
   const [diceUsed1, setDiceUsed1] = useState(false)
@@ -85,7 +83,6 @@ export default function Board() {
     peerInstance.current = peer
   }, [])
 
-
   const connectToFriend = (id: string) => {
     if (peerInstance.current) {
       const conn = peerInstance.current.connect(id)
@@ -95,6 +92,13 @@ export default function Board() {
         conn.on('open', () => {
           console.log("connected to friend " + id)
           setWhite(false) // is client
+          // falschrum aber richtig geht nicht
+          const val1 = getDiceVal()
+          const val2 = getDiceVal()
+          console.log(val1, val2)
+          setDiceVal1(val1)
+          setDiceVal2(val2)
+          sendDiceData(val1, val2)
         })
 
         conn.on('data', (data: any) => {
@@ -107,20 +111,10 @@ export default function Board() {
 
 
   const sendMoveData = (waitPositions: number[], newPositions: number[], movingPiece: number[]) => {
-    if (connection.current) {
-      console.log("sent move data")
+    if (connection.current)
       connection.current.send({id: 0, waitPositions, newPositions, movingPiece})
-    }
   }
 
-  const sendEndTurn = () => {
-    if (connection.current) {
-      console.log("sent end turn")
-      connection.current.send({id: 1})
-    }
-  }
-
-  // ..........
   const sendState = (stateId: number) => {
     if (connection.current) {
       let state = null
@@ -131,16 +125,31 @@ export default function Board() {
         case 3: state = outsideB; break
         case 4: state = toRemoveW; break
         case 5: state = toRemoveB; break
+        case 6: state = diceUsed1; break
+        case 7: state = diceUsed2; break
       }
-      connection.current.send({id: 2, stateId, state})
+      connection.current.send({id: 1, stateId, state})
     }
   }
-  useEffect(() => { sendState(0) }, [deadW])
-  useEffect(() => { sendState(1) }, [deadB])
-  useEffect(() => { sendState(2) }, [outsideW])
-  useEffect(() => { sendState(3) }, [outsideB])
-  useEffect(() => { sendState(4) }, [toRemoveW])
-  useEffect(() => { sendState(5) }, [toRemoveB])
+  useEffect(() => { if (myTurn) sendState(0) }, [deadW])
+  useEffect(() => { if (myTurn) sendState(1) }, [deadB])
+  useEffect(() => { if (myTurn) sendState(2) }, [outsideW])
+  useEffect(() => { if (myTurn) sendState(3) }, [outsideB])
+  useEffect(() => { if (myTurn) sendState(4) }, [toRemoveW])
+  useEffect(() => { if (myTurn) sendState(5) }, [toRemoveB])
+  useEffect(() => { if (myTurn) sendState(6) }, [diceUsed1])
+  useEffect(() => { if (myTurn) sendState(7) }, [diceUsed2])
+
+  const sendEndTurn = () => {
+    if (connection.current)
+      connection.current.send({id: 2})
+  }
+
+  const sendDiceData = (val1: number, val2: number) => {
+    if (connection.current)
+      connection.current.send({id: 3, val1, val2})
+  }
+
 
   const handleReceivedData = (data: any) => {
     if (data.id === 0) {
@@ -152,17 +161,31 @@ export default function Board() {
       }, 300)
     }
     else if (data.id === 1) {
-      setMyTurn(true)
-    }
-    else if (data.id === 2) {
       switch (data.stateId) {
         case 0: setDeadW(data.state); break
-        case 1: setDeadW(data.state); break
+        case 1: setDeadB(data.state); break
         case 2: setOutsideW(data.state); break
         case 3: setOutsideB(data.state); break
         case 4: setToRemoveW(data.state); break
         case 5: setToRemoveB(data.state); break
+        case 6: setDiceUsed1(data.state); break
+        case 7: setDiceUsed2(data.state); break
       }
+    }
+    else if (data.id === 2) {
+      setMyTurn(true)
+      // create and send dicevals when myTurn starts
+      const val1 = getDiceVal()
+      const val2 = getDiceVal()
+      sendDiceData(val1, val2)
+      setDiceVal1(val1)
+      setDiceVal2(val2)
+      setDiceUsed1(false)
+      setDiceUsed2(false)
+    }
+    else if (data.id === 3) {
+      setDiceVal1(data.val1)
+      setDiceVal2(data.val2)
     }
   }
 
@@ -208,42 +231,6 @@ export default function Board() {
   
     return false
   }
-
-//   const canMoveLOGS = (startCnt: number, destCnt: number, isTop: boolean, isDead: boolean = false) => {
-//     if (!isDead && ((startCnt < 0 && deadB > 0) || (startCnt > 0 && deadW > 0))) {
-//         console.log('Cannot move: color has dead piece.');
-//         return false;
-//     }
-//     if (globalDist == 0) {
-//         console.log('Cannot move: globalDist is 0.');
-//         return false;
-//     }
-//     if (movingPiece) {
-//         console.log('Cannot move: a piece is already being moved.');
-//         return false;
-//     }
-//     if (!checkHasTurn(startCnt)) {
-//         console.log('Cannot move: it is not the player\'s turn.');
-//         return false;
-//     }
-//     if (!isTop) {
-//         console.log('Cannot move: isTop is false.');
-//         return false;
-//     }
-
-//     if (Math.abs(destCnt) < 2) {
-//         console.log('Move allowed: destination count is less than 2.');
-//         return true;
-//     }
-//     if (checkSameColor(startCnt, destCnt)) {
-//         console.log('Move allowed: start and destination counts have the same color.');
-//         return true;
-//     }
-  
-//     console.log('Move not allowed: no conditions met.');
-//     return false;
-// }
-
 
 
   const canBeRemoved = (pos: number, isTop: boolean, dist: number = globalDist) => {
@@ -392,7 +379,7 @@ export default function Board() {
     }
 
     // animation with PieceAnimation component
-    const y = type < 0 ? 640 : 100
+    const y = type < 0 ? 100 : 640
     const [dx, dy] = getMoveDirections(24, destPos, newPositions[destPos], y) // posToX[24] == 360 (x of every dead Piece)
     const movingPiece = [posToX[24], y, dx, dy]
     setMovingPiece(movingPiece)
@@ -439,6 +426,7 @@ export default function Board() {
   /* --------------------------------------------------------------------------------------------------- */
   /* ---------------------------------------- dice interactions ---------------------------------------- */
   const selectDice = (id: number) => {
+    if (!myTurn) return
     if (id === 1) {
       if(!diceUsed1) {
         setGlobalDist(diceVal1)
@@ -470,8 +458,6 @@ export default function Board() {
 
   const endTurn = () => {
     setMyTurn(false)
-    setDiceVal1(getDiceVal())
-    setDiceVal2(getDiceVal())
     setDiceSelected1(false)
     setDiceSelected2(false)
     setDiceUsed1(false)
@@ -515,44 +501,6 @@ export default function Board() {
 
   return (
     <>
-      <div className="z-10 select-none">
-        <div className="absolute -translate-y-[450px] flex flex-row justify-between w-[780px] text-base-content">
-          <div>
-            <h2>my color: {white ? "white" : "black"}</h2>
-            <h2>{myTurn ? "my" : "not my"} turn, {globalDist}</h2>
-          </div>
-          <div>
-            <h2>outsideB: {outsideB}</h2>
-            <h2>outsideW: {outsideW}</h2>
-          </div>
-          <div>
-            <h2>toRemoveB: {toRemoveB}</h2>
-            <h2>toRemoveW: {toRemoveW}</h2>
-          </div>
-        </div>
-
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
-          <Dice 
-            val={diceVal1}
-            selected={diceSelected1}
-            used={diceUsed1}
-            onDiceClick={() => selectDice(1)}
-          />
-          <Dice 
-            val={diceVal2}
-            selected={diceSelected2}
-            used={diceUsed2}
-            onDiceClick={() => selectDice(2)}
-          />
-        </div>
-
-        <div onClick={endTurn} className="absolute top-1/2 left-1/2 transform -translate-x-40 -translate-y-1/2 p-2 bg-gray-300 text-black border-2 border-black text-2xl">
-          <h2>DONE</h2>
-        </div>
-      </div>
-
-
-
       <div className="z-0 relative select-none transform" style={{ transform: !white ? 'rotateX(-0.5turn)' : 'none' }}>
         <img src="board.svg" draggable="false" className="min-w-max min-h-max"/>
 
@@ -588,7 +536,7 @@ export default function Board() {
             startY={movingPiece[1]}
             dX={movingPiece[2]}
             dY={movingPiece[3]}
-            color="green"
+            color="grey"
           />
         ) : null}
 
@@ -596,7 +544,7 @@ export default function Board() {
           Array.from({ length: deadW }).map((_, index) => (
             <Piece
               key={100 + index}
-              xPos={360} yPos={100}
+              xPos={360} yPos={640}
               color={"white"}
               onPieceClick={() => handleDeadPieceClick(1)}
               isPlayable={canMove(1, positions[-1 + globalDist], true, true)}
@@ -610,7 +558,7 @@ export default function Board() {
           Array.from({ length: deadB }).map((_, index) => (
             <Piece
               key={-100 - index}
-              xPos={360} yPos={640}
+              xPos={360} yPos={100}
               color={"black"}
               onPieceClick={() => handleDeadPieceClick(-1)}
               isPlayable={canMove(-1, positions[24 - globalDist], true, true)}
@@ -656,6 +604,29 @@ export default function Board() {
           <div className="modal-action justify-center">
             <button className="btn" onClick={() => connectToFriend(friendId)}>Connect</button>
           </div>
+        </div>
+      ) : null}
+
+
+
+      <div className="absolute select-none -translate-x-52 flex flex-row items-center">
+        <Dice 
+          val={diceVal1}
+          selected={diceSelected1}
+          used={diceUsed1}
+          onDiceClick={() => selectDice(1)}
+        />
+        <Dice 
+          val={diceVal2}
+          selected={diceSelected2}
+          used={diceUsed2}
+          onDiceClick={() => selectDice(2)}
+        />
+      </div>
+
+      {myTurn ? (
+        <div onClick={endTurn} className="absolute select-none p-2 bg-gray-300 text-black border-2 border-black text-2xl">
+          <h2>DONE</h2>
         </div>
       ) : null}
     </>
