@@ -5,15 +5,15 @@ import PieceAnimation from "./PieceAnimation.tsx"
 import Dice from "./Dice.tsx"
 
 
+// not centering bug on chromium mobile, has something to do with scaling in root
+// after 1hr of trying to fix it i decided i wont: dice and done positions are now hardcoded, popups wont be centered
 
-// TODO: fix deadCnt rotateX
-// TODOlater: auto end turn when stuck, dice icons, remove daisyui, mobile port
+// TODO: enter for connect, better scaling factors, fix deadCnt rotateX, dice icons
+// TODOlater: auto end turn when stuck, remove daisyuireact native
 
 const initialPositions: number[] = [
   2, 0, 0, 0, 0, -5, 0, -3, 0, 0, 0, 5,
   -5, 0, 0, 0, 3, 0, 5, 0, 0, 0, 0, -2
-  // -3, -3, -3, -3, -3, 0, 0, 0, 0, 0, 0, 0,
-  // 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3
 ]
 const posToX: number[] = [
   720, 660, 600, 540, 480, 420, 300, 240, 180, 120, 60, 0,
@@ -500,7 +500,10 @@ export default function Board() {
 
 
   return (
-    <>
+    <div className="flex justify-center items-center min-h-screen w-full">
+
+
+
       <div className="z-0 relative select-none transform" style={{ transform: !white ? 'rotateX(-0.5turn)' : 'none' }}>
         <img src="board.svg" draggable="false" className="min-w-max min-h-max"/>
 
@@ -568,6 +571,36 @@ export default function Board() {
             </Piece>
           ))
         ) : null}
+
+        <div style={{ transform: !white ? 'rotateX(-0.5turn)' : 'none' }}>
+          <div
+            className="absolute select-none flex flex-row items-center"
+            style={{ top: '370px', left: '150px' }}
+          >
+            <Dice 
+              val={diceVal1}
+              selected={diceSelected1}
+              used={diceUsed1}
+              onDiceClick={() => selectDice(1)}
+            />
+            <Dice 
+              val={diceVal2}
+              selected={diceSelected2}
+              used={diceUsed2}
+              onDiceClick={() => selectDice(2)}
+            />
+          </div>
+
+          {myTurn ? (
+            <div 
+              onClick={endTurn} 
+              className="absolute select-none p-2 bg-gray-300 text-black border-2 border-black text-2xl"
+              style={{ top: '370px', left: '350px' }}
+            >
+              <h2>DONE</h2>
+            </div>
+          ) : null}
+        </div>
       </div>
 
 
@@ -609,26 +642,6 @@ export default function Board() {
 
 
 
-      <div className="absolute select-none -translate-x-52 flex flex-row items-center">
-        <Dice 
-          val={diceVal1}
-          selected={diceSelected1}
-          used={diceUsed1}
-          onDiceClick={() => selectDice(1)}
-        />
-        <Dice 
-          val={diceVal2}
-          selected={diceSelected2}
-          used={diceUsed2}
-          onDiceClick={() => selectDice(2)}
-        />
-      </div>
-
-      {myTurn ? (
-        <div onClick={endTurn} className="absolute select-none p-2 bg-gray-300 text-black border-2 border-black text-2xl">
-          <h2>DONE</h2>
-        </div>
-      ) : null}
-    </>
+    </div>
   )
 }
