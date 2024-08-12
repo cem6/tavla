@@ -6,8 +6,8 @@ import Dice from "./Dice.tsx"
 
 
 
-// TODO: fix deadCnt rotateX, scale to screensize
-// TODOlater: auto end turn when stuck, dice icons oder so
+// TODO: fix deadCnt rotateX
+// TODOlater: auto end turn when stuck, dice icons, remove daisyui, mobile port
 
 const initialPositions: number[] = [
   2, 0, 0, 0, 0, -5, 0, -3, 0, 0, 0, 5,

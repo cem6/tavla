@@ -8,7 +8,7 @@ export default function Bar() {
   ]
 
   return (
-    <div id="bar" className="h-full w-32 fixed top-0 left-0 bg-base-300 pt-5 text-lg">
+    <div id="bar" className="h-screen w-[20%] fixed top-0 left-0 bg-base-300 pt-5 text-lg">
       <ul className="list-none p-0 mt-2">
         {links.map((m, i) => {
           return (
